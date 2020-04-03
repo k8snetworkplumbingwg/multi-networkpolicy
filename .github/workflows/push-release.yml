@@ -1,0 +1,51 @@
+name: Docker-build-push-stable
+on:
+  push:
+    tags:
+      - v*
+jobs:
+  build:
+    name: Docker build
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_CLI_EXPERIMENTAL: enabled
+      GO111MODULE: on
+      TARGET: amd64
+      REPOSITORY: nfvpe/macvlan-networkpolicy
+      REPOSITORY_USER: nfvperobot
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Build latest-amd64
+        run: docker build -t ${REPOSITORY}:latest-amd64 .
+
+      - name: Tag stable
+        run: |
+          docker tag ${REPOSITORY}:latest-amd64 ${REPOSITORY}:stable-amd64
+          docker tag ${REPOSITORY}:latest-amd64 ${REPOSITORY}:${GITHUB_REF##*/}-amd64
+
+      - name: Login to registry
+        if: github.repository == 'k8snetworkplumbingwg/macvlan-networkpolicy'
+        run: docker login -u ${REPOSITORY_USER} -p ${{ secrets. REPOSITORY_PASS }}
+
+      - name: Push latest/snapshot images
+        if: github.repository == 'k8snetworkplumbingwg/macvlan-networkpolicy'
+        run: |
+          docker push ${REPOSITORY}:latest-amd64
+          docker push ${REPOSITORY}:stable-amd64
+          docker push ${REPOSITORY}:${GITHUB_REF##*/}-amd64
+
+      - name: Create manifest for multi-arch images
+        if: github.repository == 'k8snetworkplumbingwg/macvlan-networkpolicy'
+        run: |
+          docker manifest create ${REPOSITORY}:stable ${REPOSITORY}:stable-amd64
+          docker manifest annotate ${REPOSITORY}:stable ${REPOSITORY}:stable-amd64 --arch amd64
+          docker manifest push ${REPOSITORY}:stable
+          docker manifest create ${REPOSITORY}:latest ${REPOSITORY}:latest-amd64
+          docker manifest annotate ${REPOSITORY}:latest ${REPOSITORY}:latest-amd64 --arch amd64
+          docker manifest push ${REPOSITORY}:latest
+          docker manifest create ${REPOSITORY}:${GITHUB_REF##*/} ${REPOSITORY}:${GITHUB_REF##*/}-amd64
+          docker manifest annotate ${REPOSITORY}:${GITHUB_REF##*/} ${REPOSITORY}:${GITHUB_REF##*/}-amd64 --arch amd64
+          docker manifest push ${REPOSITORY}:${GITHUB_REF##*/}
+

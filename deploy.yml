@@ -1,0 +1,111 @@
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: macvlan-networkpolicy
+rules:
+  - apiGroups: ["k8s.cni.cncf.io"]
+    resources:
+      - '*'
+    verbs:
+      - '*'
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - namespaces
+    verbs:
+      - list
+      - get
+  # Watch for changes to Kubernetes NetworkPolicies.
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - networkpolicies
+    verbs:
+      - watch
+      - list
+  - apiGroups:
+      - ""
+      - events.k8s.io
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+      - update
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: macvlan-networkpolicy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: macvlan-networkpolicy
+subjects:
+- kind: ServiceAccount
+  name: macvlan-networkpolicy
+  namespace: kube-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: macvlan-networkpolicy
+  namespace: kube-system
+---
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: macvlan-networkpolicy-ds-amd64
+  namespace: kube-system
+  labels:
+    tier: node
+    app: macvlan-networkpolicy
+    name: macvlan-networkpolicy
+spec:
+  selector:
+    matchLabels:
+      name: macvlan-networkpolicy
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        tier: node
+        app: macvlan-networkpolicy
+        name: macvlan-networkpolicy
+    spec:
+      hostNetwork: true
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      tolerations:
+      - operator: Exists
+        effect: NoSchedule
+      serviceAccountName: macvlan-networkpolicy
+      containers:
+      - name: macvlan-networkpolicy
+        # crio support requires multus:latest for now. support 3.3 or later.
+        image: s1061123/macvlan-networkpolicy:latest
+        imagePullPolicy: Always
+        command: ["/usr/bin/macvlan-network-policy-node"]
+        args:
+        - "--host-prefix=/host"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "50Mi"
+          limits:
+            cpu: "100m"
+            memory: "50Mi"
+        securityContext:
+          privileged: true
+          capabilities:
+            add: ["SYS_ADMIN", "SYS_NET_ADMIN"]
+        volumeMounts:
+        - name: host
+          mountPath: /host
+      volumes:
+        - name: host
+          hostPath:
+            path: /

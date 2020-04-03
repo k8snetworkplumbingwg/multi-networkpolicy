@@ -1,0 +1,503 @@
+package server
+
+import (
+	"fmt"
+	"os"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/containernetworking/plugins/pkg/ns"
+
+	netdefv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
+	netdefclient "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned"
+	netdefinformerv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/informers/externalversions"
+	//netdefutils	"github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/utils"
+	mvlanv1 "github.com/s1061123/macvlan-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
+	macvlanclient "github.com/s1061123/macvlan-networkpolicy/pkg/client/clientset/versioned"
+	mvlaninformerv1 "github.com/s1061123/macvlan-networkpolicy/pkg/client/informers/externalversions"
+	mvlanlisterv1 "github.com/s1061123/macvlan-networkpolicy/pkg/client/listers/k8s.cni.cncf.io/v1"
+	"github.com/s1061123/macvlan-networkpolicy/pkg/controllers"
+
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/informers"
+	clientset "k8s.io/client-go/kubernetes"
+	corelisters "k8s.io/client-go/listers/core/v1"
+	//coreinformers	"k8s.io/client-go/informers/core/v1"
+	"k8s.io/client-go/kubernetes/scheme"
+	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/klog"
+	api "k8s.io/kubernetes/pkg/apis/core"
+	"k8s.io/kubernetes/pkg/util/async"
+	utiliptables "k8s.io/kubernetes/pkg/util/iptables"
+	utilnode "k8s.io/kubernetes/pkg/util/node"
+	"k8s.io/utils/exec"
+)
+
+// Server structure defines data for server
+type Server struct {
+	podChanges    *controllers.PodChangeTracker
+	policyChanges *controllers.PolicyChangeTracker
+	netdefChanges *controllers.NetDefChangeTracker
+	nsChanges     *controllers.NamespaceChangeTracker
+	mu            sync.Mutex // protects the following fields
+	PodMap        controllers.PodMap
+	policyMap     controllers.PolicyMap
+	namespaceMap  controllers.NamespaceMap
+	//netdefMap		controllers.NetDefMap
+	Client              clientset.Interface
+	Hostname            string
+	hostPrefix          string
+	NetworkPolicyClient macvlanclient.Interface
+	NetDefClient        netdefclient.Interface
+	//EventClient		v1core.EventsGetter
+	Broadcaster      record.EventBroadcaster
+	Recorder         record.EventRecorder
+	Options          *Options
+	ConfigSyncPeriod time.Duration
+	NodeRef          *v1.ObjectReference
+	ip4Tables        utiliptables.Interface
+	ip6Tables        utiliptables.Interface
+
+	initialized int32
+
+	podSynced    bool
+	policySynced bool
+	netdefSynced bool
+	nsSynced     bool
+
+	podLister    corelisters.PodLister
+	policyLister mvlanlisterv1.MacvlanNetworkPolicyLister
+
+	syncRunner *async.BoundedFrequencyRunner
+}
+
+// RunPodConfig ...
+func (s *Server) RunPodConfig() {
+	klog.Infof("Starting pod config")
+	// TODO: set label.NewRequirement
+	informerFactory := informers.NewSharedInformerFactoryWithOptions(s.Client, s.ConfigSyncPeriod)
+	s.podLister = informerFactory.Core().V1().Pods().Lister()
+
+	podConfig := controllers.NewPodConfig(informerFactory.Core().V1().Pods(), s.ConfigSyncPeriod)
+	//XXX: need to implement
+	podConfig.RegisterEventHandler(s)
+	go podConfig.Run(wait.NeverStop)
+	informerFactory.Start(wait.NeverStop)
+	s.SyncLoop()
+}
+
+// Run ...
+func (s *Server) Run(hostname string) error {
+	if s.Broadcaster != nil {
+		s.Broadcaster.StartRecordingToSink(
+			&v1core.EventSinkImpl{Interface: s.Client.CoreV1().Events("")})
+	}
+
+	informerFactory := informers.NewSharedInformerFactoryWithOptions(s.Client, s.ConfigSyncPeriod)
+	nsConfig := controllers.NewNamespaceConfig(informerFactory.Core().V1().Namespaces(), s.ConfigSyncPeriod)
+	nsConfig.RegisterEventHandler(s)
+	go nsConfig.Run(wait.NeverStop)
+	informerFactory.Start(wait.NeverStop)
+
+	policyInformerFactory := mvlaninformerv1.NewSharedInformerFactoryWithOptions(
+		s.NetworkPolicyClient, s.ConfigSyncPeriod)
+	s.policyLister = policyInformerFactory.K8sCniCncfIo().V1().MacvlanNetworkPolicies().Lister()
+
+	policyConfig := controllers.NewNetworkPolicyConfig(
+		policyInformerFactory.K8sCniCncfIo().V1().MacvlanNetworkPolicies(), s.ConfigSyncPeriod)
+	policyConfig.RegisterEventHandler(s)
+	go policyConfig.Run(wait.NeverStop)
+	policyInformerFactory.Start(wait.NeverStop)
+
+	netdefInformarFactory := netdefinformerv1.NewSharedInformerFactoryWithOptions(
+		s.NetDefClient, s.ConfigSyncPeriod)
+	netdefConfig := controllers.NewNetDefConfig(
+		netdefInformarFactory.K8sCniCncfIo().V1().NetworkAttachmentDefinitions(), s.ConfigSyncPeriod)
+	netdefConfig.RegisterEventHandler(s)
+	go netdefConfig.Run(wait.NeverStop)
+	netdefInformarFactory.Start(wait.NeverStop)
+
+	s.birthCry()
+
+	return nil
+}
+
+func (s *Server) setInitialized(value bool) {
+	var initialized int32
+	if value {
+		initialized = 1
+	}
+	atomic.StoreInt32(&s.initialized, initialized)
+}
+
+func (s *Server) isInitialized() bool {
+	return atomic.LoadInt32(&s.initialized) > 0
+}
+
+func (s *Server) birthCry() {
+	klog.Infof("Starting network-policy-node")
+	s.Recorder.Eventf(s.NodeRef, api.EventTypeNormal, "Starting", "Starting network-policy-node.")
+}
+
+// SyncLoop ...
+func (s *Server) SyncLoop() {
+	s.syncRunner.Loop(wait.NeverStop)
+}
+
+// NewServer ...
+func NewServer(o *Options) (*Server, error) {
+	var kubeConfig *rest.Config
+	var err error
+	if len(o.Kubeconfig) == 0 {
+		klog.Info("Neither kubeconfig file nor master URL was specified. Falling back to in-cluster config.")
+		kubeConfig, err = rest.InClusterConfig()
+	} else {
+		kubeConfig, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			&clientcmd.ClientConfigLoadingRules{ExplicitPath: o.Kubeconfig},
+			&clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: o.master}},
+		).ClientConfig()
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := clientset.NewForConfig(kubeConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	networkPolicyClient, err := macvlanclient.NewForConfig(kubeConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	netdefClient, err := netdefclient.NewForConfig(kubeConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	hostname, err := utilnode.GetHostname(o.hostnameOverride)
+	if err != nil {
+		return nil, err
+	}
+
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(
+		scheme.Scheme,
+		v1.EventSource{Component: "macvlan-networkpolicy-node", Host: hostname})
+
+	nodeRef := &v1.ObjectReference{
+		Kind:      "Node",
+		Name:      hostname,
+		UID:       types.UID(hostname),
+		Namespace: "",
+	}
+
+	syncPeriod := 30 * time.Second
+	minSyncPeriod := 0 * time.Second
+	burstSyncs := 2
+
+	policyChanges := controllers.NewPolicyChangeTracker(recorder)
+	if policyChanges == nil {
+		return nil, fmt.Errorf("cannot create policy change tracker")
+	}
+	netdefChanges := controllers.NewNetDefChangeTracker(recorder)
+	if netdefChanges == nil {
+		return nil, fmt.Errorf("cannot create net-attach-def change tracker")
+	}
+	nsChanges := controllers.NewNamespaceChangeTracker()
+	if nsChanges == nil {
+		return nil, fmt.Errorf("cannot create namespace change tracker")
+	}
+	podChanges := controllers.NewPodChangeTracker(hostname, o.hostPrefix, recorder, netdefChanges)
+	if podChanges == nil {
+		return nil, fmt.Errorf("cannot create pod change tracker")
+	}
+
+	server := &Server{
+		Options:             o,
+		Client:              client,
+		Hostname:            hostname,
+		hostPrefix:          o.hostPrefix,
+		NetworkPolicyClient: networkPolicyClient,
+		NetDefClient:        netdefClient,
+		Broadcaster:         eventBroadcaster,
+		Recorder:            recorder,
+		ConfigSyncPeriod:    15 * time.Minute,
+		NodeRef:             nodeRef,
+		ip4Tables:           utiliptables.New(exec.New(), utiliptables.ProtocolIpv4),
+		ip6Tables:           utiliptables.New(exec.New(), utiliptables.ProtocolIpv6),
+
+		policyChanges: policyChanges,
+		podChanges:    podChanges,
+		netdefChanges: netdefChanges,
+		nsChanges:     nsChanges,
+		PodMap:        make(controllers.PodMap),
+		policyMap:     make(controllers.PolicyMap),
+		namespaceMap:  make(controllers.NamespaceMap),
+	}
+	server.syncRunner = async.NewBoundedFrequencyRunner(
+		"sync-runner", server.syncMacvlanPolicy, minSyncPeriod, syncPeriod, burstSyncs)
+
+	//server.ipt4Interface.Monitor(utiliptables.Chain("MACVLAN-NETWORK-POLICY")
+	return server, nil
+}
+
+// Sync ...
+func (s *Server) Sync() {
+	klog.Infof("Sync Done!")
+	s.syncRunner.Run()
+}
+
+// AllSynced ...
+func (s *Server) AllSynced() bool {
+	return (s.policySynced == true && s.netdefSynced == true && s.nsSynced == true)
+}
+
+// OnPodAdd ...
+func (s *Server) OnPodAdd(pod *v1.Pod) {
+	klog.V(4).Infof("OnPodUpdate")
+	s.OnPodUpdate(nil, pod)
+}
+
+// OnPodUpdate ...
+func (s *Server) OnPodUpdate(oldPod, pod *v1.Pod) {
+	klog.V(4).Infof("OnPodUpdate")
+	if s.podChanges.Update(oldPod, pod) && s.podSynced {
+		s.Sync()
+	}
+}
+
+// OnPodDelete ...
+func (s *Server) OnPodDelete(pod *v1.Pod) {
+	klog.V(4).Infof("OnPodDelete")
+	s.OnPodUpdate(pod, nil)
+}
+
+// OnPodSynced ...
+func (s *Server) OnPodSynced() {
+	klog.Infof("OnPodSynced")
+	s.mu.Lock()
+	s.podSynced = true
+	s.setInitialized(s.podSynced)
+	s.mu.Unlock()
+
+	s.syncMacvlanPolicy()
+}
+
+// OnPolicyAdd ...
+func (s *Server) OnPolicyAdd(policy *mvlanv1.MacvlanNetworkPolicy) {
+	klog.V(4).Infof("OnPolicyAdd")
+	s.OnPolicyUpdate(nil, policy)
+}
+
+// OnPolicyUpdate ...
+func (s *Server) OnPolicyUpdate(oldPolicy, policy *mvlanv1.MacvlanNetworkPolicy) {
+	klog.V(4).Infof("OnPolicyUpdate")
+	if s.policyChanges.Update(oldPolicy, policy) && s.isInitialized() {
+		s.Sync()
+	}
+}
+
+// OnPolicyDelete ...
+func (s *Server) OnPolicyDelete(policy *mvlanv1.MacvlanNetworkPolicy) {
+	klog.V(4).Infof("OnPolicyDelete")
+	s.OnPolicyUpdate(policy, nil)
+}
+
+// OnPolicySynced ...
+func (s *Server) OnPolicySynced() {
+	klog.Infof("OnPolicySynced")
+	s.mu.Lock()
+	s.policySynced = true
+	s.setInitialized(s.policySynced)
+	s.mu.Unlock()
+
+	if s.AllSynced() {
+		s.RunPodConfig()
+	}
+}
+
+// OnNetDefAdd ...
+func (s *Server) OnNetDefAdd(net *netdefv1.NetworkAttachmentDefinition) {
+	klog.V(4).Infof("OnNetDefAdd")
+	s.OnNetDefUpdate(nil, net)
+}
+
+// OnNetDefUpdate ...
+func (s *Server) OnNetDefUpdate(oldNet, net *netdefv1.NetworkAttachmentDefinition) {
+	klog.V(4).Infof("OnNetDefUpdate")
+	if s.netdefChanges.Update(oldNet, net) && s.isInitialized() {
+		s.Sync()
+	}
+}
+
+// OnNetDefDelete ...
+func (s *Server) OnNetDefDelete(net *netdefv1.NetworkAttachmentDefinition) {
+	klog.V(4).Infof("OnNetDefDelete")
+	s.OnNetDefUpdate(net, nil)
+}
+
+// OnNetDefSynced ...
+func (s *Server) OnNetDefSynced() {
+	klog.Infof("OnNetDefSynced")
+	s.mu.Lock()
+	s.netdefSynced = true
+	s.setInitialized(s.netdefSynced)
+	s.mu.Unlock()
+
+	if s.AllSynced() {
+		s.RunPodConfig()
+	}
+}
+
+// OnNamespaceAdd ...
+func (s *Server) OnNamespaceAdd(ns *v1.Namespace) {
+	klog.V(4).Infof("OnNamespaceAdd")
+	s.OnNamespaceUpdate(nil, ns)
+}
+
+// OnNamespaceUpdate ...
+func (s *Server) OnNamespaceUpdate(oldNamespace, ns *v1.Namespace) {
+	klog.V(4).Infof("OnNamespaceUpdate")
+	if s.nsChanges.Update(oldNamespace, ns) && s.isInitialized() {
+		s.Sync()
+	}
+}
+
+// OnNamespaceDelete ...
+func (s *Server) OnNamespaceDelete(ns *v1.Namespace) {
+	klog.V(4).Infof("OnNamespaceDelete")
+	s.OnNamespaceUpdate(ns, nil)
+}
+
+// OnNamespaceSynced ...
+func (s *Server) OnNamespaceSynced() {
+	klog.Infof("OnNamespaceSynced")
+	s.mu.Lock()
+	s.nsSynced = true
+	s.setInitialized(s.nsSynced)
+	s.mu.Unlock()
+
+	if s.AllSynced() {
+		s.RunPodConfig()
+	}
+}
+
+func (s *Server) syncMacvlanPolicy() {
+	klog.Infof("syncMacvlanPolicy")
+	s.PodMap.Update(s.podChanges)
+	s.policyMap.Update(s.policyChanges)
+
+	pods, err := s.podLister.Pods(metav1.NamespaceAll).List(labels.Everything())
+	if err != nil {
+		klog.Errorf("failed to get pods")
+	}
+	for _, p := range pods {
+		if p.Spec.NodeName == s.Hostname {
+			namespacedName := types.NamespacedName{Namespace: p.Namespace, Name: p.Name}
+			if podInfo, ok := s.PodMap[namespacedName]; ok {
+				if len(podInfo.MacvlanInterfaces()) == 0 {
+					continue
+				}
+				netnsPath := podInfo.NetworkNamespace()
+				if s.hostPrefix != "" {
+					netnsPath = fmt.Sprintf("%s/%s", s.hostPrefix, netnsPath)
+				}
+
+				netns, err := ns.GetNS(netnsPath)
+				if err != nil {
+					klog.Errorf("cannot get netns: %v", err)
+					continue
+				}
+
+				_ = netns.Do(func(_ ns.NetNS) error {
+					return s.generatePolicyRules(p)
+				})
+			}
+		}
+	}
+}
+
+const (
+	macvlanIngressChain = "MACVLAN-INGRESS"
+	macvlanEgressChain  = "MACVLAN-EGRESS"
+)
+
+func (s *Server) generatePolicyRules(pod *v1.Pod) error {
+	fmt.Fprintf(os.Stderr, "XXX: Generate rules for Pod :%v/%v\n", pod.Namespace, pod.Name)
+	/*
+	   -t filter -N MACVLAN-POLICY-INGRESS # ensure chain
+	   -t filter -N MACVLAN-POLICY-EGRESS # ensure chain
+	*/
+	s.ip4Tables.EnsureChain(utiliptables.TableFilter, macvlanIngressChain)
+	s.ip4Tables.EnsureChain(utiliptables.TableFilter, macvlanEgressChain)
+
+	//    -A INPUT -j MACVLAN-POLICY-INGRESS # ensure rules
+	s.ip4Tables.EnsureRule(
+		utiliptables.Prepend, utiliptables.TableFilter, "INPUT", "-j", macvlanIngressChain)
+	//    -A OUTPUT -j MACVLAN-POLICY-EGRESS # ensure rules
+	s.ip4Tables.EnsureRule(
+		utiliptables.Prepend, utiliptables.TableFilter, "OUTPUT", "-j", macvlanEgressChain)
+
+	iptableBuffer := newIptableBuffer()
+	iptableBuffer.Init(s.ip4Tables)
+	for _, p := range s.policyMap {
+		policy := p.Policy()
+		policyMap, err := metav1.LabelSelectorAsMap(&policy.Spec.PodSelector)
+		if err != nil {
+			klog.Errorf("label selector: %v", err)
+			continue
+		}
+		policyPodSelector := labels.Set(policyMap).AsSelectorPreValidated()
+		if !policyPodSelector.Matches(labels.Set(pod.Labels)) {
+			continue
+		}
+
+		var ingressEnable, egressEnable bool
+		if len(policy.Spec.PolicyTypes) == 0 {
+			ingressEnable = true
+			egressEnable = true
+		} else {
+			for _, v := range policy.Spec.PolicyTypes {
+				switch v {
+				case mvlanv1.PolicyTypeIngress:
+					ingressEnable = true
+				case mvlanv1.PolicyTypeEgress:
+					egressEnable = true
+				}
+			}
+		}
+		fmt.Fprintf(os.Stderr, "ingress/egress = %v/%v\n", ingressEnable, egressEnable)
+
+		iptableBuffer.Reset()
+
+		if ingressEnable {
+			renderIngress(s, pod, iptableBuffer, policy.Spec.Ingress)
+		}
+		if egressEnable {
+			renderEgress(s, pod, iptableBuffer, policy.Spec.Egress)
+		}
+	}
+
+	if !iptableBuffer.IsUsed() {
+		iptableBuffer.Init(s.ip4Tables)
+	}
+
+	iptableBuffer.FinalizeRules()
+	if err := iptableBuffer.SyncRules(s.ip4Tables); err != nil {
+		klog.Errorf("sync rules failed: %v", err)
+		return err
+	}
+
+	return nil
+}
