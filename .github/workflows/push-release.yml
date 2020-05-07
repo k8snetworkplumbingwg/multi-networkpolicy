@@ -1,4 +1,4 @@
-name: Docker-build-push-stable
+name: push-stable
 on:
   push:
     tags:
