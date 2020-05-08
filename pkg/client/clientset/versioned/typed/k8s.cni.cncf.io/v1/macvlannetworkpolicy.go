@@ -21,8 +21,8 @@ package v1
 import (
 	"time"
 
-	v1 "github.com/s1061123/macvlan-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
-	scheme "github.com/s1061123/macvlan-networkpolicy/pkg/client/clientset/versioned/scheme"
+	v1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
+	scheme "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"

@@ -22,8 +22,8 @@ import (
 	"sync"
 	"time"
 
-	mvlanv1 "github.com/s1061123/macvlan-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
-	mvlaninformerv1 "github.com/s1061123/macvlan-networkpolicy/pkg/client/informers/externalversions/k8s.cni.cncf.io/v1"
+	mvlanv1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
+	mvlaninformerv1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/informers/externalversions/k8s.cni.cncf.io/v1"
 
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"

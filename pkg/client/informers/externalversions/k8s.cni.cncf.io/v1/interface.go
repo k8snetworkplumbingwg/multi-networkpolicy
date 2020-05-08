@@ -19,7 +19,7 @@ limitations under the License.
 package v1
 
 import (
-	internalinterfaces "github.com/s1061123/macvlan-networkpolicy/pkg/client/informers/externalversions/internalinterfaces"
+	internalinterfaces "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to all the informers in this group version.

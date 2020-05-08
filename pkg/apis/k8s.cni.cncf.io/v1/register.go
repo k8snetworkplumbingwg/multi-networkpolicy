@@ -5,7 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	k8scnicncfio "github.com/s1061123/macvlan-networkpolicy/pkg/apis/k8s.cni.cncf.io"
+	k8scnicncfio "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/apis/k8s.cni.cncf.io"
 )
 
 // SchemeGroupVersion is group version used to register these objects

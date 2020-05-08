@@ -1,4 +1,4 @@
-module github.com/s1061123/macvlan-networkpolicy
+module github.com/k8snetworkplumbingwg/macvlan-networkpolicy
 
 go 1.13
 

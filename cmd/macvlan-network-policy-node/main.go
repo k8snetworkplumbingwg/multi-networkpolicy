@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/s1061123/macvlan-networkpolicy/pkg/server"
+	"github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/server"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
