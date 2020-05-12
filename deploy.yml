@@ -85,7 +85,7 @@ spec:
       containers:
       - name: macvlan-networkpolicy
         # crio support requires multus:latest for now. support 3.3 or later.
-        image: nfvpe/macvlan-networkpolicy:latest
+        image: nfvpe/macvlan-networkpolicy:snapshot-amd64
         imagePullPolicy: Always
         command: ["/usr/bin/macvlan-network-policy-node"]
         args:
