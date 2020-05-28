@@ -403,10 +403,12 @@ func (s *Server) syncMacvlanPolicy() {
 		klog.Errorf("failed to get pods")
 	}
 	for _, p := range pods {
+		klog.Infof("XXX: SYNC %s/%s", p.Namespace, p.Name)
 		if p.Spec.NodeName == s.Hostname {
 			namespacedName := types.NamespacedName{Namespace: p.Namespace, Name: p.Name}
 			if podInfo, ok := s.PodMap[namespacedName]; ok {
 				if len(podInfo.MacvlanInterfaces()) == 0 {
+					klog.Infof("XXX: skipped due to no macvlan")
 					continue
 				}
 				netnsPath := podInfo.NetworkNamespace()
@@ -420,6 +422,7 @@ func (s *Server) syncMacvlanPolicy() {
 					continue
 				}
 
+				klog.Infof("XXX: pod: %s/%s %s", p.Namespace, p.Name, netnsPath)
 				_ = netns.Do(func(_ ns.NetNS) error {
 					return s.generatePolicyRules(p)
 				})

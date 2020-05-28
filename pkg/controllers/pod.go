@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -286,9 +287,14 @@ func (pct *PodChangeTracker) getPodNetworkNamespace(pod *v1.Pod) (string, error)
 				return "", fmt.Errorf("cannot get containerStatus")
 			}
 
-			if pid, ok := r.Info["pid"]; ok {
-				netNamespace = fmt.Sprintf("%s/proc/%s/ns/net", procPrefix, pid)
+			info := r.GetInfo()
+			var infop interface{}
+			json.Unmarshal([]byte(info["info"]), &infop)
+			pid, ok := infop.(map[string]interface{})["pid"].(float64)
+			if ! ok {
+				return "", fmt.Errorf("cannot get pid from containerStatus info")
 			}
+			netNamespace = fmt.Sprintf("%s/proc/%d/ns/net", procPrefix, int(pid))
 		}
 	}
 	return netNamespace, nil
@@ -296,6 +302,9 @@ func (pct *PodChangeTracker) getPodNetworkNamespace(pod *v1.Pod) (string, error)
 
 func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 	networks, err := netdefutils.ParsePodNetworkAnnotation(pod)
+	if err != nil {
+		klog.Infof("failed to get pod network annotation: %v", err)
+	}
 	// parse networkStatus
 	statuses, _ := netdefutils.GetNetworkStatus(pod)
 
@@ -310,14 +319,21 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 
 	// netdefname -> plugin name map
 	networkPlugins := make(map[types.NamespacedName]string)
+	if networks == nil {
+		klog.Infof("XXX: %s/%s: NO NET", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name)
+	} else {
+		klog.Infof("XXX: %s/%s: net: %v", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, networks)
+	}
 	for _, n := range networks {
 		namespace := pod.ObjectMeta.Namespace
 		if n.Namespace != "" {
 			namespace = n.Namespace
 		}
 		namespacedName := types.NamespacedName{Namespace: namespace, Name: n.Name}
+		klog.Infof("XXX: networkPlugins[%s], %v", namespacedName, pct.netdefChanges.GetPluginType(namespacedName))
 		networkPlugins[namespacedName] = pct.netdefChanges.GetPluginType(namespacedName)
 	}
+	klog.Infof("XXX: netdef->pluginMap: %v", networkPlugins)
 
 	var macvlans []MacvlanInterfaceInfo
 	for _, s := range statuses {
@@ -333,6 +349,7 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 		}
 	}
 
+	klog.Infof("XXX: Pod: %s/%s netns:%s macvlanIF:%d", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, netNamespace, macvlans)
 	info := &PodInfo{
 		name:               pod.ObjectMeta.Name,
 		namespace:          pod.ObjectMeta.Namespace,

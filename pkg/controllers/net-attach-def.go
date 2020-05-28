@@ -253,6 +253,7 @@ func (ndt *NetDefChangeTracker) newNetDefInfo(netdef *netdefv1.NetworkAttachment
 		return nil, err
 	}
 
+	klog.Infof("XXX: NetDefInfo: %s/%s: %s", netdef.ObjectMeta.Namespace, netdef.ObjectMeta.Name, netconf.Type)
 	info := &NetDefInfo{
 		netdef:     netdef,
 		pluginType: netconf.Type,
