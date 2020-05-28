@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	time "time"
 
 	k8scnicncfiov1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
@@ -61,13 +62,13 @@ func NewFilteredNetworkAttachmentDefinitionInformer(client versioned.Interface, 
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.K8sCniCncfIoV1().NetworkAttachmentDefinitions(namespace).List(options)
+				return client.K8sCniCncfIoV1().NetworkAttachmentDefinitions(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.K8sCniCncfIoV1().NetworkAttachmentDefinitions(namespace).Watch(options)
+				return client.K8sCniCncfIoV1().NetworkAttachmentDefinitions(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&k8scnicncfiov1.NetworkAttachmentDefinition{},

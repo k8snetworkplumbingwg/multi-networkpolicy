@@ -78,9 +78,9 @@ type NetworkSelectionElement struct {
 	// Namespace contains the optional namespace that the network referenced
 	// by Name exists in
 	Namespace string `json:"namespace,omitempty"`
-	// IPRequest contains an optional requested IP address for this network
+	// IPRequest contains an optional requested IP addresses for this network
 	// attachment
-	IPRequest string `json:"ips,omitempty"`
+	IPRequest []string `json:"ips,omitempty"`
 	// MacRequest contains an optional requested MAC address for this
 	// network attachment
 	MacRequest string `json:"mac,omitempty"`

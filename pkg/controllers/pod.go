@@ -528,7 +528,7 @@ func getRuntimeClientConnection(hostPrefix string) (*grpc.ClientConn, error) {
 		return nil, err
 	}
 
-	conn, err := grpc.Dial(addr, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(Timeout), grpc.WithDialer(dialer))
+	conn, err := grpc.Dial(addr, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(Timeout), grpc.WithContextDialer(dialer))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect, make sure you are running as root and the runtime has been started: %v", err)
 	}

@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"time"
 
 	v1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
@@ -70,7 +71,7 @@ func (c *macvlanNetworkPolicies) Get(name string, options metav1.GetOptions) (re
 		Resource("macvlan-networkpolicies").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(context.TODO()).
 		Into(result)
 	return
 }
@@ -87,7 +88,7 @@ func (c *macvlanNetworkPolicies) List(opts metav1.ListOptions) (result *v1.Macvl
 		Resource("macvlan-networkpolicies").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(context.TODO()).
 		Into(result)
 	return
 }
@@ -104,7 +105,7 @@ func (c *macvlanNetworkPolicies) Watch(opts metav1.ListOptions) (watch.Interface
 		Resource("macvlan-networkpolicies").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(context.TODO())
 }
 
 // Create takes the representation of a macvlanNetworkPolicy and creates it.  Returns the server's representation of the macvlanNetworkPolicy, and an error, if there is any.
@@ -114,7 +115,7 @@ func (c *macvlanNetworkPolicies) Create(macvlanNetworkPolicy *v1.MacvlanNetworkP
 		Namespace(c.ns).
 		Resource("macvlan-networkpolicies").
 		Body(macvlanNetworkPolicy).
-		Do().
+		Do(context.TODO()).
 		Into(result)
 	return
 }
@@ -127,7 +128,7 @@ func (c *macvlanNetworkPolicies) Update(macvlanNetworkPolicy *v1.MacvlanNetworkP
 		Resource("macvlan-networkpolicies").
 		Name(macvlanNetworkPolicy.Name).
 		Body(macvlanNetworkPolicy).
-		Do().
+		Do(context.TODO()).
 		Into(result)
 	return
 }
@@ -139,7 +140,7 @@ func (c *macvlanNetworkPolicies) Delete(name string, options *metav1.DeleteOptio
 		Resource("macvlan-networkpolicies").
 		Name(name).
 		Body(options).
-		Do().
+		Do(context.TODO()).
 		Error()
 }
 
@@ -155,7 +156,7 @@ func (c *macvlanNetworkPolicies) DeleteCollection(options *metav1.DeleteOptions,
 		VersionedParams(&listOptions, scheme.ParameterCodec).
 		Timeout(timeout).
 		Body(options).
-		Do().
+		Do(context.TODO()).
 		Error()
 }
 
@@ -168,7 +169,7 @@ func (c *macvlanNetworkPolicies) Patch(name string, pt types.PatchType, data []b
 		SubResource(subresources...).
 		Name(name).
 		Body(data).
-		Do().
+		Do(context.TODO()).
 		Into(result)
 	return
 }
