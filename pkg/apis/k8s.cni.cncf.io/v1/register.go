@@ -21,7 +21,7 @@ var (
 	SchemeBuilder      runtime.SchemeBuilder
 	localSchemeBuilder = &SchemeBuilder
 	// AddToScheme ...
-	AddToScheme        = localSchemeBuilder.AddToScheme
+	AddToScheme = localSchemeBuilder.AddToScheme
 )
 
 func init() {

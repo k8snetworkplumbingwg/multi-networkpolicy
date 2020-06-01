@@ -291,7 +291,7 @@ func (pct *PodChangeTracker) getPodNetworkNamespace(pod *v1.Pod) (string, error)
 			var infop interface{}
 			json.Unmarshal([]byte(info["info"]), &infop)
 			pid, ok := infop.(map[string]interface{})["pid"].(float64)
-			if ! ok {
+			if !ok {
 				return "", fmt.Errorf("cannot get pid from containerStatus info")
 			}
 			netNamespace = fmt.Sprintf("%s/proc/%d/ns/net", procPrefix, int(pid))
@@ -349,7 +349,7 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 		}
 	}
 
-	klog.Infof("XXX: Pod: %s/%s netns:%s macvlanIF:%d", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, netNamespace, macvlans)
+	klog.Infof("XXX: Pod: %s/%s netns:%s macvlanIF:%v", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, netNamespace, macvlans)
 	info := &PodInfo{
 		name:               pod.ObjectMeta.Name,
 		namespace:          pod.ObjectMeta.Namespace,

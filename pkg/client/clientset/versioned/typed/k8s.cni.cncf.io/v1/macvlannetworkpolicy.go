@@ -38,14 +38,14 @@ type MacvlanNetworkPoliciesGetter interface {
 
 // MacvlanNetworkPolicyInterface has methods to work with MacvlanNetworkPolicy resources.
 type MacvlanNetworkPolicyInterface interface {
-	Create(*v1.MacvlanNetworkPolicy) (*v1.MacvlanNetworkPolicy, error)
-	Update(*v1.MacvlanNetworkPolicy) (*v1.MacvlanNetworkPolicy, error)
-	Delete(name string, options *metav1.DeleteOptions) error
-	DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
-	Get(name string, options metav1.GetOptions) (*v1.MacvlanNetworkPolicy, error)
-	List(opts metav1.ListOptions) (*v1.MacvlanNetworkPolicyList, error)
-	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.MacvlanNetworkPolicy, err error)
+	Create(ctx context.Context, macvlanNetworkPolicy *v1.MacvlanNetworkPolicy, opts metav1.CreateOptions) (*v1.MacvlanNetworkPolicy, error)
+	Update(ctx context.Context, macvlanNetworkPolicy *v1.MacvlanNetworkPolicy, opts metav1.UpdateOptions) (*v1.MacvlanNetworkPolicy, error)
+	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.MacvlanNetworkPolicy, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*v1.MacvlanNetworkPolicyList, error)
+	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.MacvlanNetworkPolicy, err error)
 	MacvlanNetworkPolicyExpansion
 }
 
@@ -64,20 +64,20 @@ func newMacvlanNetworkPolicies(c *K8sCniCncfIoV1Client, namespace string) *macvl
 }
 
 // Get takes name of the macvlanNetworkPolicy, and returns the corresponding macvlanNetworkPolicy object, and an error if there is any.
-func (c *macvlanNetworkPolicies) Get(name string, options metav1.GetOptions) (result *v1.MacvlanNetworkPolicy, err error) {
+func (c *macvlanNetworkPolicies) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.MacvlanNetworkPolicy, err error) {
 	result = &v1.MacvlanNetworkPolicy{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("macvlan-networkpolicies").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do(context.TODO()).
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of MacvlanNetworkPolicies that match those selectors.
-func (c *macvlanNetworkPolicies) List(opts metav1.ListOptions) (result *v1.MacvlanNetworkPolicyList, err error) {
+func (c *macvlanNetworkPolicies) List(ctx context.Context, opts metav1.ListOptions) (result *v1.MacvlanNetworkPolicyList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -88,13 +88,13 @@ func (c *macvlanNetworkPolicies) List(opts metav1.ListOptions) (result *v1.Macvl
 		Resource("macvlan-networkpolicies").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do(context.TODO()).
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested macvlanNetworkPolicies.
-func (c *macvlanNetworkPolicies) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (c *macvlanNetworkPolicies) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -105,71 +105,74 @@ func (c *macvlanNetworkPolicies) Watch(opts metav1.ListOptions) (watch.Interface
 		Resource("macvlan-networkpolicies").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch(context.TODO())
+		Watch(ctx)
 }
 
 // Create takes the representation of a macvlanNetworkPolicy and creates it.  Returns the server's representation of the macvlanNetworkPolicy, and an error, if there is any.
-func (c *macvlanNetworkPolicies) Create(macvlanNetworkPolicy *v1.MacvlanNetworkPolicy) (result *v1.MacvlanNetworkPolicy, err error) {
+func (c *macvlanNetworkPolicies) Create(ctx context.Context, macvlanNetworkPolicy *v1.MacvlanNetworkPolicy, opts metav1.CreateOptions) (result *v1.MacvlanNetworkPolicy, err error) {
 	result = &v1.MacvlanNetworkPolicy{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("macvlan-networkpolicies").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(macvlanNetworkPolicy).
-		Do(context.TODO()).
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a macvlanNetworkPolicy and updates it. Returns the server's representation of the macvlanNetworkPolicy, and an error, if there is any.
-func (c *macvlanNetworkPolicies) Update(macvlanNetworkPolicy *v1.MacvlanNetworkPolicy) (result *v1.MacvlanNetworkPolicy, err error) {
+func (c *macvlanNetworkPolicies) Update(ctx context.Context, macvlanNetworkPolicy *v1.MacvlanNetworkPolicy, opts metav1.UpdateOptions) (result *v1.MacvlanNetworkPolicy, err error) {
 	result = &v1.MacvlanNetworkPolicy{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("macvlan-networkpolicies").
 		Name(macvlanNetworkPolicy.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(macvlanNetworkPolicy).
-		Do(context.TODO()).
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the macvlanNetworkPolicy and deletes it. Returns an error if one occurs.
-func (c *macvlanNetworkPolicies) Delete(name string, options *metav1.DeleteOptions) error {
+func (c *macvlanNetworkPolicies) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("macvlan-networkpolicies").
 		Name(name).
-		Body(options).
-		Do(context.TODO()).
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *macvlanNetworkPolicies) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+func (c *macvlanNetworkPolicies) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("macvlan-networkpolicies").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do(context.TODO()).
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched macvlanNetworkPolicy.
-func (c *macvlanNetworkPolicies) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.MacvlanNetworkPolicy, err error) {
+func (c *macvlanNetworkPolicies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.MacvlanNetworkPolicy, err error) {
 	result = &v1.MacvlanNetworkPolicy{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("macvlan-networkpolicies").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do(context.TODO()).
+		Do(ctx).
 		Into(result)
 	return
 }

@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	k8scnicncfiov1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var macvlannetworkpoliciesResource = schema.GroupVersionResource{Group: "k8s.cni
 var macvlannetworkpoliciesKind = schema.GroupVersionKind{Group: "k8s.cni.cncf.io", Version: "v1", Kind: "MacvlanNetworkPolicy"}
 
 // Get takes name of the macvlanNetworkPolicy, and returns the corresponding macvlanNetworkPolicy object, and an error if there is any.
-func (c *FakeMacvlanNetworkPolicies) Get(name string, options v1.GetOptions) (result *k8scnicncfiov1.MacvlanNetworkPolicy, err error) {
+func (c *FakeMacvlanNetworkPolicies) Get(ctx context.Context, name string, options v1.GetOptions) (result *k8scnicncfiov1.MacvlanNetworkPolicy, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(macvlannetworkpoliciesResource, c.ns, name), &k8scnicncfiov1.MacvlanNetworkPolicy{})
 
@@ -50,7 +52,7 @@ func (c *FakeMacvlanNetworkPolicies) Get(name string, options v1.GetOptions) (re
 }
 
 // List takes label and field selectors, and returns the list of MacvlanNetworkPolicies that match those selectors.
-func (c *FakeMacvlanNetworkPolicies) List(opts v1.ListOptions) (result *k8scnicncfiov1.MacvlanNetworkPolicyList, err error) {
+func (c *FakeMacvlanNetworkPolicies) List(ctx context.Context, opts v1.ListOptions) (result *k8scnicncfiov1.MacvlanNetworkPolicyList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(macvlannetworkpoliciesResource, macvlannetworkpoliciesKind, c.ns, opts), &k8scnicncfiov1.MacvlanNetworkPolicyList{})
 
@@ -72,14 +74,14 @@ func (c *FakeMacvlanNetworkPolicies) List(opts v1.ListOptions) (result *k8scnicn
 }
 
 // Watch returns a watch.Interface that watches the requested macvlanNetworkPolicies.
-func (c *FakeMacvlanNetworkPolicies) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeMacvlanNetworkPolicies) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(macvlannetworkpoliciesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a macvlanNetworkPolicy and creates it.  Returns the server's representation of the macvlanNetworkPolicy, and an error, if there is any.
-func (c *FakeMacvlanNetworkPolicies) Create(macvlanNetworkPolicy *k8scnicncfiov1.MacvlanNetworkPolicy) (result *k8scnicncfiov1.MacvlanNetworkPolicy, err error) {
+func (c *FakeMacvlanNetworkPolicies) Create(ctx context.Context, macvlanNetworkPolicy *k8scnicncfiov1.MacvlanNetworkPolicy, opts v1.CreateOptions) (result *k8scnicncfiov1.MacvlanNetworkPolicy, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(macvlannetworkpoliciesResource, c.ns, macvlanNetworkPolicy), &k8scnicncfiov1.MacvlanNetworkPolicy{})
 
@@ -90,7 +92,7 @@ func (c *FakeMacvlanNetworkPolicies) Create(macvlanNetworkPolicy *k8scnicncfiov1
 }
 
 // Update takes the representation of a macvlanNetworkPolicy and updates it. Returns the server's representation of the macvlanNetworkPolicy, and an error, if there is any.
-func (c *FakeMacvlanNetworkPolicies) Update(macvlanNetworkPolicy *k8scnicncfiov1.MacvlanNetworkPolicy) (result *k8scnicncfiov1.MacvlanNetworkPolicy, err error) {
+func (c *FakeMacvlanNetworkPolicies) Update(ctx context.Context, macvlanNetworkPolicy *k8scnicncfiov1.MacvlanNetworkPolicy, opts v1.UpdateOptions) (result *k8scnicncfiov1.MacvlanNetworkPolicy, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(macvlannetworkpoliciesResource, c.ns, macvlanNetworkPolicy), &k8scnicncfiov1.MacvlanNetworkPolicy{})
 
@@ -101,7 +103,7 @@ func (c *FakeMacvlanNetworkPolicies) Update(macvlanNetworkPolicy *k8scnicncfiov1
 }
 
 // Delete takes name of the macvlanNetworkPolicy and deletes it. Returns an error if one occurs.
-func (c *FakeMacvlanNetworkPolicies) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeMacvlanNetworkPolicies) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(macvlannetworkpoliciesResource, c.ns, name), &k8scnicncfiov1.MacvlanNetworkPolicy{})
 
@@ -109,15 +111,15 @@ func (c *FakeMacvlanNetworkPolicies) Delete(name string, options *v1.DeleteOptio
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeMacvlanNetworkPolicies) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(macvlannetworkpoliciesResource, c.ns, listOptions)
+func (c *FakeMacvlanNetworkPolicies) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(macvlannetworkpoliciesResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &k8scnicncfiov1.MacvlanNetworkPolicyList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched macvlanNetworkPolicy.
-func (c *FakeMacvlanNetworkPolicies) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *k8scnicncfiov1.MacvlanNetworkPolicy, err error) {
+func (c *FakeMacvlanNetworkPolicies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *k8scnicncfiov1.MacvlanNetworkPolicy, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(macvlannetworkpoliciesResource, c.ns, name, pt, data, subresources...), &k8scnicncfiov1.MacvlanNetworkPolicy{})
 
