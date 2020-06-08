@@ -111,11 +111,6 @@ func (ipt *iptableBuffer) FinalizeRules() {
 }
 
 func (ipt *iptableBuffer) SyncRules(iptables utiliptables.Interface) error {
-	/*
-		fmt.Fprintf(os.Stderr, "=========\n")
-		fmt.Fprintf(os.Stderr, "current: %v\n", ipt.currentChain)
-		fmt.Fprintf(os.Stderr, "active: %v\n", ipt.activeChain)
-	*/
 	fmt.Fprintf(os.Stderr, "========= filterRules\n")
 	fmt.Fprintf(os.Stderr, "%s", ipt.filterRules.String())
 	fmt.Fprintf(os.Stderr, "=========\n")
@@ -125,32 +120,6 @@ func (ipt *iptableBuffer) SyncRules(iptables utiliptables.Interface) error {
 func (ipt *iptableBuffer) IsUsed() bool {
 	return (len(ipt.activeChain) != 0)
 }
-
-/*
-func (ipt *iptableBuffer) Debug() {
-	fmt.Fprintf(os.Stderr, "=========\n")
-	for k, v := range ipt.currentFilter {
-		fmt.Fprintf(os.Stderr, "[%v]%s\n", k, string(v))
-	}
-	fmt.Fprintf(os.Stderr, "========= initial (already put)\n")
-	fmt.Fprintf(os.Stderr, "-A INPUT -j MACVLAN-INGRESS\n")
-	fmt.Fprintf(os.Stderr, "-A OUTPUT -j MACVLAN-EGRESS\n")
-	fmt.Fprintf(os.Stderr, "========= filterRules\n")
-	fmt.Fprintf(os.Stderr, "%s", ipt.filterRules.String())
-	//fmt.Fprintf(os.Stderr, "%s", ipt.filterChains.String())
-	//fmt.Fprintf(os.Stderr, "========= filterRules\n")
-		fmt.Fprintf(os.Stderr, "%s", ipt.policyIndex.String())
-		fmt.Fprintf(os.Stderr, "%s", ipt.ingressPorts.String())
-		fmt.Fprintf(os.Stderr, "%s", ipt.ingressFrom.String())
-		fmt.Fprintf(os.Stderr, "%s", ipt.egressPorts.String())
-		fmt.Fprintf(os.Stderr, "%s", ipt.egressTo.String())
-		fmt.Fprintf(os.Stderr, "COMMIT\n")
-		fmt.Fprintf(os.Stderr, "=========\n")
-		fmt.Fprintf(os.Stderr, "current: %v\n", ipt.currentChain)
-		fmt.Fprintf(os.Stderr, "active: %v\n", ipt.activeChain)
-		fmt.Fprintf(os.Stderr, "=========\n")
-}
-*/
 
 func renderIngress(s *Server, pod *v1.Pod, buf *iptableBuffer, ingresses []mvlanv1.MacvlanNetworkPolicyIngressRule) {
 	for n, ingress := range ingresses {

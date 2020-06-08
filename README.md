@@ -42,6 +42,10 @@ daemonset.apps/macvlan-networkpolicy-ds-amd64 created
 
 (TBD)
 
+## TODO
+
+* Alternative packet processing other than iptables (e.g. xdp)
+
 ## Contact Us
 
 For any questions about macvlan-networkpolicy, feel free to ask a question in #k8s-npwg-discussion in the [Intel-Corp Slack](https://intel-corp.herokuapp.com/), or open up a GitHub issue.

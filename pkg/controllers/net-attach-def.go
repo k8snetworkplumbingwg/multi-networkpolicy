@@ -31,7 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
 )
 
@@ -248,16 +247,30 @@ func (ndt *NetDefChangeTracker) newNetDefInfo(netdef *netdefv1.NetworkAttachment
 	if err != nil {
 		return nil, err
 	}
-	netconf := &cnitypes.NetConf{}
-	if err := json.Unmarshal(confBytes, netconf); err != nil {
+
+	netconfList := &cnitypes.NetConfList{}
+	if err := json.Unmarshal(confBytes, netconfList); err != nil {
 		return nil, err
 	}
 
-	klog.Infof("XXX: NetDefInfo: %s/%s: %s", netdef.ObjectMeta.Namespace, netdef.ObjectMeta.Name, netconf.Type)
-	info := &NetDefInfo{
-		netdef:     netdef,
-		pluginType: netconf.Type,
+	var info *NetDefInfo
+	if len(netconfList.Plugins) == 0 {
+		netconf := &cnitypes.NetConf{}
+		if err := json.Unmarshal(confBytes, netconf); err != nil {
+			return nil, err
+		}
+
+		info = &NetDefInfo{
+			netdef:     netdef,
+			pluginType: netconf.Type,
+		}
+	} else {
+		info = &NetDefInfo{
+			netdef:     netdef,
+			pluginType: netconfList.Plugins[0].Type,
+		}
 	}
+	//klog.Infof("XXX: NetDefInfo: %s/%s: %s", netdef.ObjectMeta.Namespace, netdef.ObjectMeta.Name, info.pluginType)
 	return info, nil
 }
 
@@ -268,6 +281,7 @@ func (ndt *NetDefChangeTracker) netDefToNetDefMap(netdef *netdefv1.NetworkAttach
 	netdefMap := make(NetDefMap)
 	netdefInfo, err := ndt.newNetDefInfo(netdef)
 	if err != nil {
+		klog.Errorf("err: %v\n", err)
 		return nil
 	}
 	//XXX: need to revisit (why we need map?, just netdefInfo might be okey?)
@@ -312,7 +326,7 @@ func (ndt *NetDefChangeTracker) Update(previous, current *netdefv1.NetworkAttach
 }
 
 // NewNetDefChangeTracker ...
-func NewNetDefChangeTracker(recorder record.EventRecorder) *NetDefChangeTracker {
+func NewNetDefChangeTracker() *NetDefChangeTracker {
 	return &NetDefChangeTracker{
 		items:     make(map[types.NamespacedName]*netdefChange),
 		netdefMap: make(NetDefMap),

@@ -37,7 +37,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 	pb "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"k8s.io/klog"
 	k8sutils "k8s.io/kubernetes/pkg/kubelet/util"
@@ -235,8 +234,7 @@ type PodChangeTracker struct {
 	hostname      string
 	netdefChanges *NetDefChangeTracker
 	// items maps a service to its podChange.
-	items    map[types.NamespacedName]*podChange
-	recorder record.EventRecorder
+	items map[types.NamespacedName]*podChange
 
 	crioClient pb.RuntimeServiceClient
 	crioConn   *grpc.ClientConn
@@ -363,7 +361,7 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 }
 
 // NewPodChangeTracker ...
-func NewPodChangeTracker(hostname, hostPrefix string, recorder record.EventRecorder, ndt *NetDefChangeTracker) *PodChangeTracker {
+func NewPodChangeTracker(hostname, hostPrefix string, ndt *NetDefChangeTracker) *PodChangeTracker {
 	crioClient, crioConn, err := GetCrioRuntimeClient(hostPrefix)
 	if err != nil {
 		klog.Errorf("failed to get crio client: %v", err)
@@ -374,7 +372,6 @@ func NewPodChangeTracker(hostname, hostPrefix string, recorder record.EventRecor
 		items:         make(map[types.NamespacedName]*podChange),
 		hostname:      hostname,
 		netdefChanges: ndt,
-		recorder:      recorder,
 		crioClient:    crioClient,
 		crioConn:      crioConn,
 	}

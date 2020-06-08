@@ -28,31 +28,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
-	/*
-		"context"
-		"encoding/json"
-		"fmt"
-		"os"
-		"reflect"
-		"regexp"
-		"strings"
-		"sync"
-		"time"
-		"k8s.io/klog"
-		"k8s.io/apimachinery/pkg/types"
-		"k8s.io/api/core/v1"
-		"k8s.io/client-go/tools/cache"
-		coreinformers "k8s.io/client-go/informers/core/v1"
-		netdefv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-		netdefutils "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/utils"
-
-		"google.golang.org/grpc"
-		pb "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
-		k8sutils "k8s.io/kubernetes/pkg/kubelet/util"
-		docker "github.com/docker/docker/client"
-	*/)
+)
 
 // NetworkPolicyHandler is an abstract interface of objects which receive
 // notifications about policy object changes.
@@ -305,7 +282,7 @@ func (pct *PolicyChangeTracker) Update(previous, current *mvlanv1.MacvlanNetwork
 }
 
 // NewPolicyChangeTracker ...
-func NewPolicyChangeTracker(recorder record.EventRecorder) *PolicyChangeTracker {
+func NewPolicyChangeTracker() *PolicyChangeTracker {
 	return &PolicyChangeTracker{
 		items: make(map[types.NamespacedName]*policyChange),
 	}

@@ -9,15 +9,14 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 
-	netdefv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	netdefclient "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned"
-	netdefinformerv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/informers/externalversions"
-	//netdefutils	"github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/utils"
 	mvlanv1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
 	macvlanclient "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/clientset/versioned"
 	mvlaninformerv1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/informers/externalversions"
 	mvlanlisterv1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/listers/k8s.cni.cncf.io/v1"
 	"github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/controllers"
+	netdefv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
+	netdefclient "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned"
+	netdefinformerv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/informers/externalversions"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,10 +25,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
-	corelisters "k8s.io/client-go/listers/core/v1"
-	//coreinformers	"k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
+	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -44,28 +42,26 @@ import (
 
 // Server structure defines data for server
 type Server struct {
-	podChanges    *controllers.PodChangeTracker
-	policyChanges *controllers.PolicyChangeTracker
-	netdefChanges *controllers.NetDefChangeTracker
-	nsChanges     *controllers.NamespaceChangeTracker
-	mu            sync.Mutex // protects the following fields
-	PodMap        controllers.PodMap
-	policyMap     controllers.PolicyMap
-	namespaceMap  controllers.NamespaceMap
-	//netdefMap		controllers.NetDefMap
+	podChanges          *controllers.PodChangeTracker
+	policyChanges       *controllers.PolicyChangeTracker
+	netdefChanges       *controllers.NetDefChangeTracker
+	nsChanges           *controllers.NamespaceChangeTracker
+	mu                  sync.Mutex // protects the following fields
+	PodMap              controllers.PodMap
+	policyMap           controllers.PolicyMap
+	namespaceMap        controllers.NamespaceMap
 	Client              clientset.Interface
 	Hostname            string
 	hostPrefix          string
 	NetworkPolicyClient macvlanclient.Interface
 	NetDefClient        netdefclient.Interface
-	//EventClient		v1core.EventsGetter
-	Broadcaster      record.EventBroadcaster
-	Recorder         record.EventRecorder
-	Options          *Options
-	ConfigSyncPeriod time.Duration
-	NodeRef          *v1.ObjectReference
-	ip4Tables        utiliptables.Interface
-	ip6Tables        utiliptables.Interface
+	Broadcaster         record.EventBroadcaster
+	Recorder            record.EventRecorder
+	Options             *Options
+	ConfigSyncPeriod    time.Duration
+	NodeRef             *v1.ObjectReference
+	ip4Tables           utiliptables.Interface
+	ip6Tables           utiliptables.Interface
 
 	initialized int32
 
@@ -83,12 +79,10 @@ type Server struct {
 // RunPodConfig ...
 func (s *Server) RunPodConfig() {
 	klog.Infof("Starting pod config")
-	// TODO: set label.NewRequirement
 	informerFactory := informers.NewSharedInformerFactoryWithOptions(s.Client, s.ConfigSyncPeriod)
 	s.podLister = informerFactory.Core().V1().Pods().Lister()
 
 	podConfig := controllers.NewPodConfig(informerFactory.Core().V1().Pods(), s.ConfigSyncPeriod)
-	//XXX: need to implement
 	podConfig.RegisterEventHandler(s)
 	go podConfig.Run(wait.NeverStop)
 	informerFactory.Start(wait.NeverStop)
@@ -206,11 +200,11 @@ func NewServer(o *Options) (*Server, error) {
 	minSyncPeriod := 0 * time.Second
 	burstSyncs := 2
 
-	policyChanges := controllers.NewPolicyChangeTracker(recorder)
+	policyChanges := controllers.NewPolicyChangeTracker()
 	if policyChanges == nil {
 		return nil, fmt.Errorf("cannot create policy change tracker")
 	}
-	netdefChanges := controllers.NewNetDefChangeTracker(recorder)
+	netdefChanges := controllers.NewNetDefChangeTracker()
 	if netdefChanges == nil {
 		return nil, fmt.Errorf("cannot create net-attach-def change tracker")
 	}
@@ -218,7 +212,7 @@ func NewServer(o *Options) (*Server, error) {
 	if nsChanges == nil {
 		return nil, fmt.Errorf("cannot create namespace change tracker")
 	}
-	podChanges := controllers.NewPodChangeTracker(hostname, o.hostPrefix, recorder, netdefChanges)
+	podChanges := controllers.NewPodChangeTracker(hostname, o.hostPrefix, netdefChanges)
 	if podChanges == nil {
 		return nil, fmt.Errorf("cannot create pod change tracker")
 	}
@@ -248,6 +242,7 @@ func NewServer(o *Options) (*Server, error) {
 	server.syncRunner = async.NewBoundedFrequencyRunner(
 		"sync-runner", server.syncMacvlanPolicy, minSyncPeriod, syncPeriod, burstSyncs)
 
+	// XXX: Need to monitor?
 	//server.ipt4Interface.Monitor(utiliptables.Chain("MACVLAN-NETWORK-POLICY")
 	return server, nil
 }
@@ -438,11 +433,9 @@ const (
 
 func (s *Server) generatePolicyRules(pod *v1.Pod) error {
 	fmt.Fprintf(os.Stderr, "XXX: Generate rules for Pod :%v/%v\n", pod.Namespace, pod.Name)
-	/*
-	   -t filter -N MACVLAN-POLICY-INGRESS # ensure chain
-	   -t filter -N MACVLAN-POLICY-EGRESS # ensure chain
-	*/
+	// -t filter -N MACVLAN-POLICY-INGRESS # ensure chain
 	s.ip4Tables.EnsureChain(utiliptables.TableFilter, macvlanIngressChain)
+	// -t filter -N MACVLAN-POLICY-EGRESS # ensure chain
 	s.ip4Tables.EnsureChain(utiliptables.TableFilter, macvlanEgressChain)
 
 	//    -A INPUT -j MACVLAN-POLICY-INGRESS # ensure rules

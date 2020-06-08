@@ -7,6 +7,8 @@ require (
 	github.com/containernetworking/plugins v0.8.5
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v0.0.0-20200528071255-22c819bc6e7e
+	github.com/onsi/ginkgo v1.11.0
+	github.com/onsi/gomega v1.7.0
 	github.com/spf13/cobra v0.0.7
 	github.com/spf13/pflag v1.0.5
 	google.golang.org/grpc v1.26.0
