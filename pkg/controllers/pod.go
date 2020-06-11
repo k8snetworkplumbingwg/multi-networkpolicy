@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -40,6 +39,13 @@ import (
 	pb "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"k8s.io/klog"
 	k8sutils "k8s.io/kubernetes/pkg/kubelet/util"
+)
+
+// RuntimeKind is enum type variable for container runtime
+type RuntimeKind int
+const (
+	Crio = iota
+	Docker
 )
 
 // PodHandler is an abstract interface of objects which receive
@@ -161,8 +167,7 @@ type MacvlanInterfaceInfo struct {
 type PodInfo struct {
 	name               string
 	namespace          string
-	networkNamespace   string
-	networkAttachments []*netdefv1.NetworkSelectionElement
+	netNSPath	   string
 	networkStatus      []netdefv1.NetworkStatus
 	nodeName           string
 	macVlanInterfaces  []MacvlanInterfaceInfo
@@ -197,13 +202,8 @@ func (info *PodInfo) Namespace() string {
 }
 
 // NetworkNamespace ...
-func (info *PodInfo) NetworkNamespace() string {
-	return info.networkNamespace
-}
-
-// NetworkAttachments ...
-func (info *PodInfo) NetworkAttachments() []*netdefv1.NetworkSelectionElement {
-	return info.networkAttachments
+func (info *PodInfo) NetNSPath() string {
+	return info.netNSPath
 }
 
 // NetworkStatus ...
@@ -236,8 +236,12 @@ type PodChangeTracker struct {
 	// items maps a service to its podChange.
 	items map[types.NamespacedName]*podChange
 
+	// for cri-o 
 	crioClient pb.RuntimeServiceClient
 	crioConn   *grpc.ClientConn
+
+	// for docker
+	dockerClient *docker.Client
 }
 
 // String
@@ -245,8 +249,8 @@ func (pct *PodChangeTracker) String() string {
 	return fmt.Sprintf("podChange: %v", pct.items)
 }
 
-func (pct *PodChangeTracker) getPodNetworkNamespace(pod *v1.Pod) (string, error) {
-	netNamespace := ""
+func (pct *PodChangeTracker) getPodNetNSPath(pod *v1.Pod) (string, error) {
+	netnsPath := ""
 
 	// get Container netns
 	procPrefix := ""
@@ -258,20 +262,14 @@ func (pct *PodChangeTracker) getPodNetworkNamespace(pod *v1.Pod) (string, error)
 	if runtimeKind[0] == "docker" {
 		containerID := strings.TrimPrefix(pod.Status.ContainerStatuses[0].ContainerID, "docker://")
 		if len(containerID) > 0 {
-			c, err := docker.NewEnvClient()
-			if err != nil {
-				panic(err)
-			}
-
-			c.NegotiateAPIVersion(context.TODO())
-			json, err := c.ContainerInspect(context.TODO(), containerID)
+			json, err := pct.dockerClient.ContainerInspect(context.TODO(), containerID)
 			if err != nil {
 				return "", fmt.Errorf("failed to get container info: %v", err)
 			}
 			if json.NetworkSettings == nil {
 				return "", fmt.Errorf("failed to get container info: %v", err)
 			}
-			netNamespace = fmt.Sprintf("%s/proc/%d/ns/net", procPrefix, json.State.Pid)
+			netnsPath = fmt.Sprintf("%s/proc/%d/ns/net", procPrefix, json.State.Pid)
 		}
 	} else { // crio
 		containerID := strings.TrimPrefix(pod.Status.ContainerStatuses[0].ContainerID, "cri-o://")
@@ -292,10 +290,10 @@ func (pct *PodChangeTracker) getPodNetworkNamespace(pod *v1.Pod) (string, error)
 			if !ok {
 				return "", fmt.Errorf("cannot get pid from containerStatus info")
 			}
-			netNamespace = fmt.Sprintf("%s/proc/%d/ns/net", procPrefix, int(pid))
+			netnsPath = fmt.Sprintf("%s/proc/%d/ns/net", procPrefix, int(pid))
 		}
 	}
-	return netNamespace, nil
+	return netnsPath, nil
 }
 
 func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
@@ -307,9 +305,9 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 	statuses, _ := netdefutils.GetNetworkStatus(pod)
 
 	// get container network namespace
-	netNamespace := ""
+	netnsPath := ""
 	if pct.hostname == pod.Spec.NodeName {
-		netNamespace, err = pct.getPodNetworkNamespace(pod)
+		netnsPath, err = pct.getPodNetNSPath(pod)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get pod network namespace: %v", err)
 		}
@@ -333,10 +331,20 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 	}
 	klog.Infof("XXX: netdef->pluginMap: %v", networkPlugins)
 
+	// match it with 
 	var macvlans []MacvlanInterfaceInfo
 	for _, s := range statuses {
-		namespace := pod.ObjectMeta.Namespace
-		namespacedName := types.NamespacedName{Namespace: namespace, Name: s.Name}
+		var netNamespace, netName string
+		slashItems := strings.Split(s.Name, "/")
+		if len(slashItems) == 2 {
+			netNamespace = strings.TrimSpace(slashItems[0])
+			netName = slashItems[1]
+		} else {
+			netNamespace = pod.ObjectMeta.Namespace
+			netName = s.Name
+		}
+		namespacedName := types.NamespacedName{Namespace: netNamespace, Name: netName}
+
 		if networkPlugins[namespacedName] == "macvlan" {
 			macvlans = append(macvlans, MacvlanInterfaceInfo{
 				NetattachName: s.Name,
@@ -347,13 +355,12 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 		}
 	}
 
-	klog.Infof("XXX: Pod: %s/%s netns:%s macvlanIF:%v", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, netNamespace, macvlans)
+	klog.Infof("XXX: Pod: %s/%s netns:%s macvlanIF:%v", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, netnsPath, macvlans)
 	info := &PodInfo{
 		name:               pod.ObjectMeta.Name,
 		namespace:          pod.ObjectMeta.Namespace,
-		networkAttachments: networks,
 		networkStatus:      statuses,
-		networkNamespace:   netNamespace,
+		netNSPath:          netnsPath,
 		nodeName:           pod.Spec.NodeName,
 		macVlanInterfaces:  macvlans,
 	}
@@ -361,7 +368,19 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 }
 
 // NewPodChangeTracker ...
-func NewPodChangeTracker(hostname, hostPrefix string, ndt *NetDefChangeTracker) *PodChangeTracker {
+func NewPodChangeTracker(runtime RuntimeKind, hostname, hostPrefix string, ndt *NetDefChangeTracker) *PodChangeTracker {
+	switch runtime {
+	case Crio:
+		return NewPodChangeTrackerCrio(hostname, hostPrefix, ndt)
+	case Docker:
+		return NewPodChangeTrackerDocker(hostname, hostPrefix, ndt)
+	default:
+		klog.Errorf("unknown container runtime: %v", runtime)
+		return nil
+	}
+}
+
+func NewPodChangeTrackerCrio(hostname, hostPrefix string, ndt *NetDefChangeTracker) *PodChangeTracker {
 	crioClient, crioConn, err := GetCrioRuntimeClient(hostPrefix)
 	if err != nil {
 		klog.Errorf("failed to get crio client: %v", err)
@@ -374,6 +393,22 @@ func NewPodChangeTracker(hostname, hostPrefix string, ndt *NetDefChangeTracker) 
 		netdefChanges: ndt,
 		crioClient:    crioClient,
 		crioConn:      crioConn,
+	}
+}
+
+func NewPodChangeTrackerDocker(hostname, hostPrefix string, ndt *NetDefChangeTracker) *PodChangeTracker {
+	cli, err := docker.NewEnvClient()
+
+	if err != nil {
+		panic(err)
+	}
+	cli.NegotiateAPIVersion(context.TODO())
+
+	return &PodChangeTracker{
+		items:         make(map[types.NamespacedName]*podChange),
+		hostname:      hostname,
+		netdefChanges: ndt,
+		dockerClient:  cli,
 	}
 }
 
@@ -491,46 +526,6 @@ func (pm *PodMap) String() string {
 // =====================================
 // misc functions...
 // =====================================
-
-func parsePodNetworkObjectName(podnetwork string) (string, string, string, error) {
-	var netNsName string
-	var netIfName string
-	var networkName string
-
-	slashItems := strings.Split(podnetwork, "/")
-	if len(slashItems) == 2 {
-		netNsName = strings.TrimSpace(slashItems[0])
-		networkName = slashItems[1]
-	} else if len(slashItems) == 1 {
-		networkName = slashItems[0]
-	} else {
-		return "", "", "", fmt.Errorf("parsePodNetworkObjectName: Invalid network object (failed at '/')")
-	}
-
-	atItems := strings.Split(networkName, "@")
-	networkName = strings.TrimSpace(atItems[0])
-	if len(atItems) == 2 {
-		netIfName = strings.TrimSpace(atItems[1])
-	} else if len(atItems) != 1 {
-		return "", "", "", fmt.Errorf("parsePodNetworkObjectName: Invalid network object (failed at '@')")
-	}
-
-	// Check and see if each item matches the specification for valid attachment name.
-	// "Valid attachment names must be comprised of units of the DNS-1123 label format"
-	// [a-z0-9]([-a-z0-9]*[a-z0-9])?
-	// And we allow at (@), and forward slash (/) (units separated by commas)
-	// It must start and end alphanumerically.
-	allItems := []string{netNsName, networkName, netIfName}
-	for i := range allItems {
-		matched, _ := regexp.MatchString("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", allItems[i])
-		if !matched && len([]rune(allItems[i])) > 0 {
-			return "", "", "", fmt.Errorf(fmt.Sprintf("parsePodNetworkObjectName: Failed to parse: one or more items did not match comma-delimited format (must consist of lower case alphanumeric characters). Must start and end with an alphanumeric character), mismatch @ '%v'", allItems[i]))
-		}
-	}
-
-	return netNsName, networkName, netIfName, nil
-}
-
 func getRuntimeClientConnection(hostPrefix string) (*grpc.ClientConn, error) {
 	//return nil, fmt.Errorf("--runtime-endpoint is not set")
 	//Docker/cri-o

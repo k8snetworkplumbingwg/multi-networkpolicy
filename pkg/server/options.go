@@ -1,8 +1,13 @@
 package server
 
 import (
+	"fmt"
 	"flag"
+	"strings"
+
 	"github.com/spf13/pflag"
+	"github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/controllers"
+
 	"k8s.io/klog"
 	utilnode "k8s.io/kubernetes/pkg/util/node"
 )
@@ -15,6 +20,8 @@ type Options struct {
 	master           string
 	hostnameOverride string
 	hostPrefix       string
+	containerRuntime controllers.RuntimeKind
+	containerRuntimeStr string
 	// errCh is the channel that errors will be sent
 	errCh chan error
 }
@@ -23,6 +30,7 @@ type Options struct {
 func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	klog.InitFlags(nil)
 	fs.SortFlags = false
+	fs.StringVar(&o.containerRuntimeStr, "container-runtime", "crio", "Container runtime using for the cluster. Possible values: 'crio', 'docker'. ")
 	fs.StringVar(&o.Kubeconfig, "kubeconfig", o.Kubeconfig, "Path to kubeconfig file with authorization information (the master location is set by the master flag).")
 	fs.StringVar(&o.master, "master", o.master, "The address of the Kubernetes API server (overrides any value in kubeconfig)")
 	fs.StringVar(&o.hostnameOverride, "hostname-override", o.hostnameOverride, "If non-empty, will use this string as identification instead of the actual hostname.")
@@ -32,7 +40,14 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 
 // Validate will check command line options
 func (o *Options) Validate(args []string) error {
-	//XXX
+
+	if strings.Compare(o.containerRuntimeStr, "docker") == 0 {
+		o.containerRuntime = controllers.Docker
+	} else if strings.Compare(o.containerRuntimeStr, "crio") == 0 {
+		o.containerRuntime = controllers.Crio
+	} else {
+		return fmt.Errorf("Invalid container-runtime option (possible value: \"docker\", \"crio\"")
+	}
 	return nil
 }
 
