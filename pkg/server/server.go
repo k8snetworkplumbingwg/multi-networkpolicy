@@ -212,7 +212,7 @@ func NewServer(o *Options) (*Server, error) {
 	if nsChanges == nil {
 		return nil, fmt.Errorf("cannot create namespace change tracker")
 	}
-	podChanges := controllers.NewPodChangeTracker(hostname, o.hostPrefix, netdefChanges)
+	podChanges := controllers.NewPodChangeTracker(o.containerRuntime, hostname, o.hostPrefix, netdefChanges)
 	if podChanges == nil {
 		return nil, fmt.Errorf("cannot create pod change tracker")
 	}
@@ -406,7 +406,7 @@ func (s *Server) syncMacvlanPolicy() {
 					klog.Infof("XXX: skipped due to no macvlan")
 					continue
 				}
-				netnsPath := podInfo.NetworkNamespace()
+				netnsPath := podInfo.NetNSPath()
 				if s.hostPrefix != "" {
 					netnsPath = fmt.Sprintf("%s/%s", s.hostPrefix, netnsPath)
 				}

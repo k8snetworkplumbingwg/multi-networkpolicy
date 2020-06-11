@@ -12,4 +12,4 @@ RUN yum install -y iptables-utils
 COPY --from=build /usr/src/macvlan-networkpolicy/macvlan-network-policy-node /usr/bin
 WORKDIR /usr/bin
 
-ENTRYPOINT ["macvlan-network-policy-node"]
+ENTRYPOINT ["macvlan-networkpolicy-node"]
