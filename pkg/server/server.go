@@ -448,7 +448,7 @@ func (s *Server) generatePolicyRules(pod *v1.Pod) error {
 	iptableBuffer := newIptableBuffer()
 	iptableBuffer.Init(s.ip4Tables)
 	for _, p := range s.policyMap {
-		policy := p.Policy()
+		policy := p.Policy
 		policyMap, err := metav1.LabelSelectorAsMap(&policy.Spec.PodSelector)
 		if err != nil {
 			klog.Errorf("label selector: %v", err)

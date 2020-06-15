@@ -143,23 +143,13 @@ func (c *NetDefConfig) handleDeleteNetDef(obj interface{}) {
 
 // NetDefInfo contains information that defines a object.
 type NetDefInfo struct {
-	netdef     *netdefv1.NetworkAttachmentDefinition
-	pluginType string
-}
-
-// NetDef ...
-func (info *NetDefInfo) NetDef() *netdefv1.NetworkAttachmentDefinition {
-	return info.netdef
+	Netdef     *netdefv1.NetworkAttachmentDefinition
+	PluginType string
 }
 
 // Name ...
 func (info *NetDefInfo) Name() string {
-	return info.netdef.ObjectMeta.Name
-}
-
-// PluginType ...
-func (info *NetDefInfo) PluginType() string {
-	return info.pluginType
+	return info.Netdef.ObjectMeta.Name
 }
 
 // NetDefMap ...
@@ -200,20 +190,6 @@ func (n *NetDefMap) unmerge(other NetDefMap) {
 	}
 }
 
-//XXX: for debug, to be removed
-/*
-func (n *NetDefMap)String() string {
-	if n == nil {
-		return ""
-	}
-	str := ""
-	for _, v := range *n{
-		str = fmt.Sprintf("%s\n\tpod: %s", str, v.Name())
-	}
-	return str
-}
-*/
-
 type netdefChange struct {
 	previous NetDefMap
 	current  NetDefMap
@@ -237,7 +213,7 @@ func (ndt *NetDefChangeTracker) String() string {
 func (ndt *NetDefChangeTracker) GetPluginType(name types.NamespacedName) string {
 	ndt.netdefMap.Update(ndt)
 	if cur, ok := ndt.netdefMap[name]; ok {
-		return cur.pluginType
+		return cur.PluginType
 	}
 	return ""
 }
@@ -261,16 +237,15 @@ func (ndt *NetDefChangeTracker) newNetDefInfo(netdef *netdefv1.NetworkAttachment
 		}
 
 		info = &NetDefInfo{
-			netdef:     netdef,
-			pluginType: netconf.Type,
+			Netdef:     netdef,
+			PluginType: netconf.Type,
 		}
 	} else {
 		info = &NetDefInfo{
-			netdef:     netdef,
-			pluginType: netconfList.Plugins[0].Type,
+			Netdef:     netdef,
+			PluginType: netconfList.Plugins[0].Type,
 		}
 	}
-	//klog.Infof("XXX: NetDefInfo: %s/%s: %s", netdef.ObjectMeta.Namespace, netdef.ObjectMeta.Name, info.pluginType)
 	return info, nil
 }
 

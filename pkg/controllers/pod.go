@@ -260,6 +260,9 @@ func (pct *PodChangeTracker) getPodNetNSPath(pod *v1.Pod) (string, error) {
 
 	runtimeKind := strings.Split(pod.Status.ContainerStatuses[0].ContainerID, ":")
 	if runtimeKind[0] == "docker" {
+		if pct.dockerClient == nil {
+			return "", fmt.Errorf("cannot find docker client")
+		}
 		containerID := strings.TrimPrefix(pod.Status.ContainerStatuses[0].ContainerID, "docker://")
 		if len(containerID) > 0 {
 			json, err := pct.dockerClient.ContainerInspect(context.TODO(), containerID)
@@ -271,7 +274,10 @@ func (pct *PodChangeTracker) getPodNetNSPath(pod *v1.Pod) (string, error) {
 			}
 			netnsPath = fmt.Sprintf("%s/proc/%d/ns/net", procPrefix, json.State.Pid)
 		}
-	} else { // crio
+	} else if runtimeKind[0] == "cri-o" { // crio
+		if pct.crioConn == nil {
+			return "", fmt.Errorf("cannot find docker client")
+		}
 		containerID := strings.TrimPrefix(pod.Status.ContainerStatuses[0].ContainerID, "cri-o://")
 		if len(containerID) > 0 {
 			request := &pb.ContainerStatusRequest{
@@ -292,6 +298,11 @@ func (pct *PodChangeTracker) getPodNetNSPath(pod *v1.Pod) (string, error) {
 			}
 			netnsPath = fmt.Sprintf("%s/proc/%d/ns/net", procPrefix, int(pid))
 		}
+	} else {
+		if pct.dockerClient == nil && pct.crioConn == nil {
+			return "", nil
+		}
+		return "", fmt.Errorf("unknown container id: %s", pod.Status.ContainerStatuses[0].ContainerID)
 	}
 	return netnsPath, nil
 }
@@ -299,7 +310,9 @@ func (pct *PodChangeTracker) getPodNetNSPath(pod *v1.Pod) (string, error) {
 func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 	networks, err := netdefutils.ParsePodNetworkAnnotation(pod)
 	if err != nil {
-		klog.Infof("failed to get pod network annotation: %v", err)
+		if _, ok := err.(*netdefv1.NoK8sNetworkError); !ok {
+			klog.Infof("failed to get pod network annotation: %v", err)
+		}
 	}
 	// parse networkStatus
 	statuses, _ := netdefutils.GetNetworkStatus(pod)

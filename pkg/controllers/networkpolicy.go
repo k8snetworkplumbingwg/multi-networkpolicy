@@ -140,17 +140,16 @@ func (c *NetworkPolicyConfig) handleDeletePolicy(obj interface{}) {
 
 // PolicyInfo contains information that defines a policy.
 type PolicyInfo struct {
-	policy *mvlanv1.MacvlanNetworkPolicy
-}
-
-// Policy ...
-func (info *PolicyInfo) Policy() *mvlanv1.MacvlanNetworkPolicy {
-	return info.policy
+	Policy *mvlanv1.MacvlanNetworkPolicy
 }
 
 // Name ...
 func (info *PolicyInfo) Name() string {
-	return info.policy.ObjectMeta.Name
+	return info.Policy.ObjectMeta.Name
+}
+
+func (info *PolicyInfo) Namespace() string {
+	return info.Policy.ObjectMeta.Namespace
 }
 
 // PolicyMap ...
@@ -225,7 +224,7 @@ func (pct *PolicyChangeTracker) String() string {
 
 func (pct *PolicyChangeTracker) newPolicyInfo(policy *mvlanv1.MacvlanNetworkPolicy) (*PolicyInfo, error) {
 	info := &PolicyInfo{
-		policy: policy,
+		Policy: policy,
 	}
 	return info, nil
 }
