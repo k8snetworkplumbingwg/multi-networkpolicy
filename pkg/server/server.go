@@ -402,11 +402,11 @@ func (s *Server) syncMacvlanPolicy() {
 		if p.Spec.NodeName == s.Hostname {
 			namespacedName := types.NamespacedName{Namespace: p.Namespace, Name: p.Name}
 			if podInfo, ok := s.PodMap[namespacedName]; ok {
-				if len(podInfo.MacvlanInterfaces()) == 0 {
+				if len(podInfo.MacvlanInterfaces) == 0 {
 					klog.Infof("XXX: skipped due to no macvlan")
 					continue
 				}
-				netnsPath := podInfo.NetNSPath()
+				netnsPath := podInfo.NetNSPath
 				if s.hostPrefix != "" {
 					netnsPath = fmt.Sprintf("%s/%s", s.hostPrefix, netnsPath)
 				}

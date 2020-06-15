@@ -162,7 +162,7 @@ func renderIngressPorts(s *Server, pod *v1.Pod, buf *iptableBuffer, index int, p
 			klog.Errorf("cannot get podinfo")
 			continue
 		}
-		for _, macvlanIF := range podinfo.MacvlanInterfaces() {
+		for _, macvlanIF := range podinfo.MacvlanInterfaces {
 			writeLine(buf.ingressPorts, "-A", string(chainName),
 				"-m", "comment", "--comment", "\"comment\"", "-i", macvlanIF.InterfaceName,
 				"-m", proto, "-p", proto, "--dport", port.Port.String(),
@@ -232,8 +232,8 @@ func renderIngressFrom(s *Server, pod *v1.Pod, buf *iptableBuffer, index int, fr
 					continue
 				}
 				sPodinfo, err := s.PodMap.GetPodInfo(sPod)
-				for _, macvlan := range podinfo.MacvlanInterfaces() {
-					for _, sMacvlan := range sPodinfo.MacvlanInterfaces() {
+				for _, macvlan := range podinfo.MacvlanInterfaces {
+					for _, sMacvlan := range sPodinfo.MacvlanInterfaces {
 						for _, ip := range sMacvlan.IPs {
 							writeLine(buf.ingressFrom, "-A", string(chainName),
 								"-i", macvlan.InterfaceName, "-s", ip,
@@ -244,12 +244,12 @@ func renderIngressFrom(s *Server, pod *v1.Pod, buf *iptableBuffer, index int, fr
 			}
 		} else if peer.IPBlock != nil {
 			for _, except := range peer.IPBlock.Except {
-				for _, macvlan := range podinfo.MacvlanInterfaces() {
+				for _, macvlan := range podinfo.MacvlanInterfaces {
 					writeLine(buf.ingressFrom, "-A", string(chainName),
 						"-i", macvlan.InterfaceName, "-s", except, "-j", "DROP")
 				}
 			}
-			for _, macvlan := range podinfo.MacvlanInterfaces() {
+			for _, macvlan := range podinfo.MacvlanInterfaces {
 				writeLine(buf.ingressFrom, "-A", string(chainName),
 					"-i", macvlan.InterfaceName, "-s", peer.IPBlock.CIDR,
 					"-j", "MARK", "--set-xmark", "0x20000/0x20000")
@@ -299,7 +299,7 @@ func renderEgressPorts(s *Server, pod *v1.Pod, buf *iptableBuffer, index int, po
 			klog.Errorf("cannot get podinfo")
 			continue
 		}
-		for _, macvlanIF := range podinfo.MacvlanInterfaces() {
+		for _, macvlanIF := range podinfo.MacvlanInterfaces {
 			writeLine(buf.egressPorts, "-A", string(chainName),
 				"-m", "comment", "--comment", "\"comment\"", "-o", macvlanIF.InterfaceName,
 				"-m", proto, "-p", proto, "--dport", port.Port.String(),
@@ -370,8 +370,8 @@ func renderEgressTo(s *Server, pod *v1.Pod, buf *iptableBuffer, index int, to []
 					continue
 				}
 				sPodinfo, err := s.PodMap.GetPodInfo(sPod)
-				for _, macvlan := range podinfo.MacvlanInterfaces() {
-					for _, sMacvlan := range sPodinfo.MacvlanInterfaces() {
+				for _, macvlan := range podinfo.MacvlanInterfaces {
+					for _, sMacvlan := range sPodinfo.MacvlanInterfaces {
 						for _, ip := range sMacvlan.IPs {
 							writeLine(buf.egressTo, "-A", string(chainName),
 								"-o", macvlan.InterfaceName, "-d", ip,
@@ -382,12 +382,12 @@ func renderEgressTo(s *Server, pod *v1.Pod, buf *iptableBuffer, index int, to []
 			}
 		} else if peer.IPBlock != nil {
 			for _, except := range peer.IPBlock.Except {
-				for _, macvlan := range podinfo.MacvlanInterfaces() {
+				for _, macvlan := range podinfo.MacvlanInterfaces {
 					writeLine(buf.egressTo, "-A", string(chainName),
 						"-o", macvlan.InterfaceName, "-d", except, "-j", "DROP")
 				}
 			}
-			for _, macvlan := range podinfo.MacvlanInterfaces() {
+			for _, macvlan := range podinfo.MacvlanInterfaces {
 				writeLine(buf.egressTo, "-A", string(chainName),
 					"-o", macvlan.InterfaceName, "-d", peer.IPBlock.CIDR,
 					"-j", "MARK", "--set-xmark", "0x20000/0x20000")

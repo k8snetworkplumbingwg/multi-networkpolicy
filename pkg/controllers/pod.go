@@ -165,21 +165,20 @@ type MacvlanInterfaceInfo struct {
 
 // PodInfo contains information that defines a pod.
 type PodInfo struct {
-	name               string
-	namespace          string
-	netNSPath	   string
-	networkStatus      []netdefv1.NetworkStatus
-	nodeName           string
-	macVlanInterfaces  []MacvlanInterfaceInfo
+	Name               string
+	Namespace          string
+	NetNSPath	   string
+	NetworkStatus      []netdefv1.NetworkStatus
+	NodeName           string
+	MacvlanInterfaces  []MacvlanInterfaceInfo
 }
 
 // GetMultusNetIFs ...
 func (info *PodInfo) GetMultusNetIFs() []string {
 	results := []string{}
 
-	if info != nil && len(info.networkStatus) > 0 {
-		klog.Info("XXXST:", info.networkStatus)
-		for _, status := range info.networkStatus[1:] {
+	if info != nil && len(info.NetworkStatus) > 0 {
+		for _, status := range info.NetworkStatus[1:] {
 			results = append(results, status.Interface)
 		}
 	}
@@ -188,37 +187,7 @@ func (info *PodInfo) GetMultusNetIFs() []string {
 
 // String ...
 func (info *PodInfo) String() string {
-	return fmt.Sprintf("pod:%s", info.name)
-}
-
-// Name ...
-func (info *PodInfo) Name() string {
-	return info.name
-}
-
-// Namespace ...
-func (info *PodInfo) Namespace() string {
-	return info.namespace
-}
-
-// NetworkNamespace ...
-func (info *PodInfo) NetNSPath() string {
-	return info.netNSPath
-}
-
-// NetworkStatus ...
-func (info *PodInfo) NetworkStatus() []netdefv1.NetworkStatus {
-	return info.networkStatus
-}
-
-// Node ...
-func (info *PodInfo) Node() string {
-	return info.nodeName
-}
-
-// MacvlanInterfaces ...
-func (info *PodInfo) MacvlanInterfaces() []MacvlanInterfaceInfo {
-	return info.macVlanInterfaces
+	return fmt.Sprintf("pod:%s", info.Name)
 }
 
 type podChange struct {
@@ -370,12 +339,12 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 
 	klog.Infof("XXX: Pod: %s/%s netns:%s macvlanIF:%v", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, netnsPath, macvlans)
 	info := &PodInfo{
-		name:               pod.ObjectMeta.Name,
-		namespace:          pod.ObjectMeta.Namespace,
-		networkStatus:      statuses,
-		netNSPath:          netnsPath,
-		nodeName:           pod.Spec.NodeName,
-		macVlanInterfaces:  macvlans,
+		Name:               pod.ObjectMeta.Name,
+		Namespace:          pod.ObjectMeta.Namespace,
+		NetworkStatus:      statuses,
+		NetNSPath:          netnsPath,
+		NodeName:           pod.Spec.NodeName,
+		MacvlanInterfaces:  macvlans,
 	}
 	return info, nil
 }
@@ -531,7 +500,7 @@ func (pm *PodMap) String() string {
 	}
 	str := ""
 	for _, v := range *pm {
-		str = fmt.Sprintf("%s\n\tpod: %s", str, v.Name())
+		str = fmt.Sprintf("%s\n\tpod: %s", str, v.Name)
 	}
 	return str
 }
