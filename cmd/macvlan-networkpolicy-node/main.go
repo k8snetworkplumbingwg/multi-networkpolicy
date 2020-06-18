@@ -42,7 +42,7 @@ func main() {
 		Use:  "macvlan-networkpolicy-node",
 		Long: `TBD`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := opts.Validate(args); err != nil {
+			if err := opts.Validate(); err != nil {
 				klog.Fatalf("failed validate: %v", err)
 			}
 

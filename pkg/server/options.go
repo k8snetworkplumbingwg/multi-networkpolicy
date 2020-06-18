@@ -39,14 +39,16 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 }
 
 // Validate will check command line options
-func (o *Options) Validate(args []string) error {
+func (o *Options) Validate() error {
 
-	if strings.Compare(o.containerRuntimeStr, "docker") == 0 {
+	// make it lower case
+	containerRuntimeStr := strings.ToLower(o.containerRuntimeStr)
+	if strings.Compare(containerRuntimeStr, "docker") == 0 {
 		o.containerRuntime = controllers.Docker
-	} else if strings.Compare(o.containerRuntimeStr, "crio") == 0 {
+	} else if strings.Compare(containerRuntimeStr, "crio") == 0 {
 		o.containerRuntime = controllers.Crio
 	} else {
-		return fmt.Errorf("Invalid container-runtime option (possible value: \"docker\", \"crio\"")
+		return fmt.Errorf("Invalid container-runtime option %s (possible value: \"docker\", \"crio\"", o.containerRuntimeStr)
 	}
 	return nil
 }

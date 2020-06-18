@@ -3,7 +3,7 @@ package server
 import (
 	"bytes"
 	"fmt"
-	"os"
+	//"os"
 	"strings"
 
 	mvlanv1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
@@ -111,9 +111,11 @@ func (ipt *iptableBuffer) FinalizeRules() {
 }
 
 func (ipt *iptableBuffer) SyncRules(iptables utiliptables.Interface) error {
+	/*
 	fmt.Fprintf(os.Stderr, "========= filterRules\n")
 	fmt.Fprintf(os.Stderr, "%s", ipt.filterRules.String())
 	fmt.Fprintf(os.Stderr, "=========\n")
+	*/
 	return iptables.RestoreAll(ipt.filterRules.Bytes(), utiliptables.NoFlushTables, utiliptables.RestoreCounters)
 }
 
@@ -121,19 +123,19 @@ func (ipt *iptableBuffer) IsUsed() bool {
 	return (len(ipt.activeChain) != 0)
 }
 
-func renderIngress(s *Server, pod *v1.Pod, buf *iptableBuffer, ingresses []mvlanv1.MacvlanNetworkPolicyIngressRule) {
+func (buf *iptableBuffer)renderIngress(s *Server, pod *v1.Pod, ingresses []mvlanv1.MacvlanNetworkPolicyIngressRule) {
 	for n, ingress := range ingresses {
 		writeLine(buf.policyIndex, "-A", macvlanIngressChain,
 			"-j", "MARK", "--set-xmark 0x0/0x30000")
-		renderIngressPorts(s, pod, buf, n, ingress.Ports)
-		renderIngressFrom(s, pod, buf, n, ingress.From)
+		buf.renderIngressPorts(s, pod, n, ingress.Ports)
+		buf.renderIngressFrom(s, pod, n, ingress.From)
 		writeLine(buf.policyIndex, "-A", macvlanIngressChain,
 			"-m", "mark", "--mark", "0x30000/0x30000", "-j", "RETURN")
 	}
 	writeLine(buf.policyIndex, "-A", macvlanIngressChain, "-j", "DROP")
 }
 
-func renderIngressPorts(s *Server, pod *v1.Pod, buf *iptableBuffer, index int, ports []mvlanv1.MacvlanNetworkPolicyPort) {
+func (buf *iptableBuffer) renderIngressPorts(s *Server, pod *v1.Pod, index int, ports []mvlanv1.MacvlanNetworkPolicyPort) {
 	chainName := utiliptables.Chain(fmt.Sprintf("MACVLAN-INGRESS-%d-PORTS", index))
 
 	buf.activeChain[utiliptables.Chain(chainName)] = true
@@ -171,7 +173,7 @@ func renderIngressPorts(s *Server, pod *v1.Pod, buf *iptableBuffer, index int, p
 	}
 }
 
-func renderIngressFrom(s *Server, pod *v1.Pod, buf *iptableBuffer, index int, from []mvlanv1.MacvlanNetworkPolicyPeer) {
+func (buf *iptableBuffer) renderIngressFrom(s *Server, pod *v1.Pod, index int, from []mvlanv1.MacvlanNetworkPolicyPeer) {
 	chainName := utiliptables.Chain(fmt.Sprintf("MACVLAN-INGRESS-%d-FROM", index))
 	podinfo, err := s.PodMap.GetPodInfo(pod)
 	if err != nil {
@@ -260,17 +262,17 @@ func renderIngressFrom(s *Server, pod *v1.Pod, buf *iptableBuffer, index int, fr
 	}
 }
 
-func renderEgress(s *Server, pod *v1.Pod, buf *iptableBuffer, egresses []mvlanv1.MacvlanNetworkPolicyEgressRule) {
+func (buf *iptableBuffer)renderEgress(s *Server, pod *v1.Pod, egresses []mvlanv1.MacvlanNetworkPolicyEgressRule) {
 	for n, egress := range egresses {
 		writeLine(buf.policyIndex, "-A", macvlanEgressChain, "-j", "MARK", "--set-xmark 0x0/0x30000")
-		renderEgressPorts(s, pod, buf, n, egress.Ports)
-		renderEgressTo(s, pod, buf, n, egress.To)
+		buf.renderEgressPorts(s, pod, n, egress.Ports)
+		buf.renderEgressTo(s, pod, n, egress.To)
 		writeLine(buf.policyIndex, "-A", macvlanEgressChain, "-m", "mark", "--mark", "0x30000/0x30000", "-j", "RETURN")
 	}
 	writeLine(buf.policyIndex, "-A", macvlanEgressChain, "-j", "DROP")
 }
 
-func renderEgressPorts(s *Server, pod *v1.Pod, buf *iptableBuffer, index int, ports []mvlanv1.MacvlanNetworkPolicyPort) {
+func (buf *iptableBuffer) renderEgressPorts(s *Server, pod *v1.Pod, index int, ports []mvlanv1.MacvlanNetworkPolicyPort) {
 	chainName := utiliptables.Chain(fmt.Sprintf("MACVLAN-EGRESS-%d-PORTS", index))
 
 	buf.activeChain[utiliptables.Chain(chainName)] = true
@@ -308,7 +310,7 @@ func renderEgressPorts(s *Server, pod *v1.Pod, buf *iptableBuffer, index int, po
 	}
 }
 
-func renderEgressTo(s *Server, pod *v1.Pod, buf *iptableBuffer, index int, to []mvlanv1.MacvlanNetworkPolicyPeer) {
+func (buf *iptableBuffer) renderEgressTo(s *Server, pod *v1.Pod, index int, to []mvlanv1.MacvlanNetworkPolicyPeer) {
 	chainName := utiliptables.Chain(fmt.Sprintf("MACVLAN-EGRESS-%d-FROM", index))
 	podinfo, err := s.PodMap.GetPodInfo(pod)
 	if err != nil {

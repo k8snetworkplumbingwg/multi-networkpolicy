@@ -277,7 +277,7 @@ func (pct *PolicyChangeTracker) Update(previous, current *mvlanv1.MacvlanNetwork
 		delete(pct.items, namespacedName)
 	}
 
-	return len(pct.items) > 0
+	return len(pct.items) >= 0
 }
 
 // NewPolicyChangeTracker ...

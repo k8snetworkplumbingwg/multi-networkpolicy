@@ -478,10 +478,10 @@ func (s *Server) generatePolicyRules(pod *v1.Pod) error {
 		iptableBuffer.Reset()
 
 		if ingressEnable {
-			renderIngress(s, pod, iptableBuffer, policy.Spec.Ingress)
+			iptableBuffer.renderIngress(s, pod, policy.Spec.Ingress)
 		}
 		if egressEnable {
-			renderEgress(s, pod, iptableBuffer, policy.Spec.Egress)
+			iptableBuffer.renderEgress(s, pod, policy.Spec.Egress)
 		}
 	}
 
