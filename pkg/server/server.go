@@ -47,7 +47,7 @@ type Server struct {
 	netdefChanges       *controllers.NetDefChangeTracker
 	nsChanges           *controllers.NamespaceChangeTracker
 	mu                  sync.Mutex // protects the following fields
-	PodMap              controllers.PodMap
+	podMap              controllers.PodMap
 	policyMap           controllers.PolicyMap
 	namespaceMap        controllers.NamespaceMap
 	Client              clientset.Interface
@@ -235,7 +235,7 @@ func NewServer(o *Options) (*Server, error) {
 		podChanges:    podChanges,
 		netdefChanges: netdefChanges,
 		nsChanges:     nsChanges,
-		PodMap:        make(controllers.PodMap),
+		podMap:        make(controllers.PodMap),
 		policyMap:     make(controllers.PolicyMap),
 		namespaceMap:  make(controllers.NamespaceMap),
 	}
@@ -390,7 +390,7 @@ func (s *Server) OnNamespaceSynced() {
 
 func (s *Server) syncMacvlanPolicy() {
 	klog.Infof("syncMacvlanPolicy")
-	s.PodMap.Update(s.podChanges)
+	s.podMap.Update(s.podChanges)
 	s.policyMap.Update(s.policyChanges)
 
 	pods, err := s.podLister.Pods(metav1.NamespaceAll).List(labels.Everything())
@@ -401,7 +401,7 @@ func (s *Server) syncMacvlanPolicy() {
 		klog.Infof("XXX: SYNC %s/%s", p.Namespace, p.Name)
 		if p.Spec.NodeName == s.Hostname {
 			namespacedName := types.NamespacedName{Namespace: p.Namespace, Name: p.Name}
-			if podInfo, ok := s.PodMap[namespacedName]; ok {
+			if podInfo, ok := s.podMap[namespacedName]; ok {
 				if len(podInfo.MacvlanInterfaces) == 0 {
 					klog.Infof("XXX: skipped due to no macvlan")
 					continue

@@ -159,7 +159,7 @@ func (buf *iptableBuffer) renderIngressPorts(s *Server, pod *v1.Pod, index int, 
 
 	for _, port := range ports {
 		proto := strings.ToLower(string(*port.Protocol))
-		podinfo, err := s.PodMap.GetPodInfo(pod)
+		podinfo, err := s.podMap.GetPodInfo(pod)
 		if err != nil {
 			klog.Errorf("cannot get podinfo")
 			continue
@@ -175,7 +175,7 @@ func (buf *iptableBuffer) renderIngressPorts(s *Server, pod *v1.Pod, index int, 
 
 func (buf *iptableBuffer) renderIngressFrom(s *Server, pod *v1.Pod, index int, from []mvlanv1.MacvlanNetworkPolicyPeer) {
 	chainName := utiliptables.Chain(fmt.Sprintf("MACVLAN-INGRESS-%d-FROM", index))
-	podinfo, err := s.PodMap.GetPodInfo(pod)
+	podinfo, err := s.podMap.GetPodInfo(pod)
 	if err != nil {
 		klog.Errorf("cannot get podinfo")
 		return
@@ -233,7 +233,7 @@ func (buf *iptableBuffer) renderIngressFrom(s *Server, pod *v1.Pod, index int, f
 				if nsSelector != nil && !nsSelector.Matches(labels.Set(nsLabels.Labels)) {
 					continue
 				}
-				sPodinfo, err := s.PodMap.GetPodInfo(sPod)
+				sPodinfo, err := s.podMap.GetPodInfo(sPod)
 				for _, macvlan := range podinfo.MacvlanInterfaces {
 					for _, sMacvlan := range sPodinfo.MacvlanInterfaces {
 						for _, ip := range sMacvlan.IPs {
@@ -296,7 +296,7 @@ func (buf *iptableBuffer) renderEgressPorts(s *Server, pod *v1.Pod, index int, p
 
 	for _, port := range ports {
 		proto := strings.ToLower(string(*port.Protocol))
-		podinfo, err := s.PodMap.GetPodInfo(pod)
+		podinfo, err := s.podMap.GetPodInfo(pod)
 		if err != nil {
 			klog.Errorf("cannot get podinfo")
 			continue
@@ -312,7 +312,7 @@ func (buf *iptableBuffer) renderEgressPorts(s *Server, pod *v1.Pod, index int, p
 
 func (buf *iptableBuffer) renderEgressTo(s *Server, pod *v1.Pod, index int, to []mvlanv1.MacvlanNetworkPolicyPeer) {
 	chainName := utiliptables.Chain(fmt.Sprintf("MACVLAN-EGRESS-%d-FROM", index))
-	podinfo, err := s.PodMap.GetPodInfo(pod)
+	podinfo, err := s.podMap.GetPodInfo(pod)
 	if err != nil {
 		klog.Errorf("cannot get podinfo")
 		return
@@ -371,7 +371,7 @@ func (buf *iptableBuffer) renderEgressTo(s *Server, pod *v1.Pod, index int, to [
 				if nsSelector != nil && !nsSelector.Matches(labels.Set(nsLabels.Labels)) {
 					continue
 				}
-				sPodinfo, err := s.PodMap.GetPodInfo(sPod)
+				sPodinfo, err := s.podMap.GetPodInfo(sPod)
 				for _, macvlan := range podinfo.MacvlanInterfaces {
 					for _, sMacvlan := range sPodinfo.MacvlanInterfaces {
 						for _, ip := range sMacvlan.IPs {
