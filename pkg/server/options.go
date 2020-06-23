@@ -1,12 +1,12 @@
 package server
 
 import (
-	"fmt"
 	"flag"
+	"fmt"
 	"strings"
 
-	"github.com/spf13/pflag"
 	"github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/controllers"
+	"github.com/spf13/pflag"
 
 	"k8s.io/klog"
 	utilnode "k8s.io/kubernetes/pkg/util/node"
@@ -17,10 +17,10 @@ type Options struct {
 	// kubeconfig is the path to a KubeConfig file.
 	Kubeconfig string
 	// master is used to override the kubeconfig's URL to the apiserver
-	master           string
-	hostnameOverride string
-	hostPrefix       string
-	containerRuntime controllers.RuntimeKind
+	master              string
+	hostnameOverride    string
+	hostPrefix          string
+	containerRuntime    controllers.RuntimeKind
 	containerRuntimeStr string
 	// errCh is the channel that errors will be sent
 	errCh chan error

@@ -43,6 +43,7 @@ import (
 
 // RuntimeKind is enum type variable for container runtime
 type RuntimeKind int
+
 const (
 	Crio = iota
 	Docker
@@ -67,14 +68,14 @@ type PodHandler interface {
 
 // PodConfig ...
 type PodConfig struct {
-	listerSynched cache.InformerSynced
+	listerSynced cache.InformerSynced
 	eventHandlers []PodHandler
 }
 
 // NewPodConfig creates a new PodConfig.
 func NewPodConfig(podInformer coreinformers.PodInformer, resyncPeriod time.Duration) *PodConfig {
 	result := &PodConfig{
-		listerSynched: podInformer.Informer().HasSynced,
+		listerSynced: podInformer.Informer().HasSynced,
 	}
 
 	podInformer.Informer().AddEventHandlerWithResyncPeriod(
@@ -97,7 +98,7 @@ func (c *PodConfig) RegisterEventHandler(handler PodHandler) {
 func (c *PodConfig) Run(stopCh <-chan struct{}) {
 	klog.Info("Starting pod config controller")
 
-	if !cache.WaitForNamedCacheSync("pod config", stopCh, c.listerSynched) {
+	if !cache.WaitForNamedCacheSync("pod config", stopCh, c.listerSynced) {
 		return
 	}
 
@@ -165,12 +166,12 @@ type MacvlanInterfaceInfo struct {
 
 // PodInfo contains information that defines a pod.
 type PodInfo struct {
-	Name               string
-	Namespace          string
-	NetNSPath	   string
-	NetworkStatus      []netdefv1.NetworkStatus
-	NodeName           string
-	MacvlanInterfaces  []MacvlanInterfaceInfo
+	Name              string
+	Namespace         string
+	NetNSPath         string
+	NetworkStatus     []netdefv1.NetworkStatus
+	NodeName          string
+	MacvlanInterfaces []MacvlanInterfaceInfo
 }
 
 // GetMultusNetIFs ...
@@ -205,7 +206,7 @@ type PodChangeTracker struct {
 	// items maps a service to its podChange.
 	items map[types.NamespacedName]*podChange
 
-	// for cri-o 
+	// for cri-o
 	crioClient pb.RuntimeServiceClient
 	crioConn   *grpc.ClientConn
 
@@ -224,7 +225,7 @@ func (pct *PodChangeTracker) getPodNetNSPath(pod *v1.Pod) (string, error) {
 	// get Container netns
 	procPrefix := ""
 	if len(pod.Status.ContainerStatuses) == 0 {
-		return "", fmt.Errorf("XXX: No container status")
+		return "", fmt.Errorf("No container status")
 	}
 
 	runtimeKind := strings.Split(pod.Status.ContainerStatuses[0].ContainerID, ":")
@@ -298,9 +299,9 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 	// netdefname -> plugin name map
 	networkPlugins := make(map[types.NamespacedName]string)
 	if networks == nil {
-		klog.Infof("XXX: %s/%s: NO NET", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name)
+		klog.Infof("%s/%s: NO NET", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name)
 	} else {
-		klog.Infof("XXX: %s/%s: net: %v", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, networks)
+		klog.Infof("%s/%s: net: %v", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, networks)
 	}
 	for _, n := range networks {
 		namespace := pod.ObjectMeta.Namespace
@@ -308,12 +309,12 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 			namespace = n.Namespace
 		}
 		namespacedName := types.NamespacedName{Namespace: namespace, Name: n.Name}
-		klog.Infof("XXX: networkPlugins[%s], %v", namespacedName, pct.netdefChanges.GetPluginType(namespacedName))
+		klog.Infof("networkPlugins[%s], %v", namespacedName, pct.netdefChanges.GetPluginType(namespacedName))
 		networkPlugins[namespacedName] = pct.netdefChanges.GetPluginType(namespacedName)
 	}
-	klog.Infof("XXX: netdef->pluginMap: %v", networkPlugins)
+	klog.Infof("netdef->pluginMap: %v", networkPlugins)
 
-	// match it with 
+	// match it with
 	var macvlans []MacvlanInterfaceInfo
 	for _, s := range statuses {
 		var netNamespace, netName string
@@ -337,14 +338,14 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 		}
 	}
 
-	klog.Infof("XXX: Pod: %s/%s netns:%s macvlanIF:%v", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, netnsPath, macvlans)
+	klog.Infof("Pod: %s/%s netns:%s macvlanIF:%v", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, netnsPath, macvlans)
 	info := &PodInfo{
-		Name:               pod.ObjectMeta.Name,
-		Namespace:          pod.ObjectMeta.Namespace,
-		NetworkStatus:      statuses,
-		NetNSPath:          netnsPath,
-		NodeName:           pod.Spec.NodeName,
-		MacvlanInterfaces:  macvlans,
+		Name:              pod.ObjectMeta.Name,
+		Namespace:         pod.ObjectMeta.Namespace,
+		NetworkStatus:     statuses,
+		NetNSPath:         netnsPath,
+		NodeName:          pod.Spec.NodeName,
+		MacvlanInterfaces: macvlans,
 	}
 	return info, nil
 }
