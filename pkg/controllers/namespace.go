@@ -32,14 +32,14 @@ type NamespaceHandler interface {
 
 // NamespaceConfig ...
 type NamespaceConfig struct {
-	listerSynched cache.InformerSynced
+	listerSynced cache.InformerSynced
 	eventHandlers []NamespaceHandler
 }
 
 // NewNamespaceConfig creates a new NamespaceConfig.
 func NewNamespaceConfig(nsInformer coreinformers.NamespaceInformer, resyncPeriod time.Duration) *NamespaceConfig {
 	result := &NamespaceConfig{
-		listerSynched: nsInformer.Informer().HasSynced,
+		listerSynced: nsInformer.Informer().HasSynced,
 	}
 
 	nsInformer.Informer().AddEventHandlerWithResyncPeriod(
@@ -62,7 +62,7 @@ func (c *NamespaceConfig) RegisterEventHandler(handler NamespaceHandler) {
 func (c *NamespaceConfig) Run(stopCh <-chan struct{}) {
 	klog.Info("Starting ns config controller")
 
-	if !cache.WaitForNamedCacheSync("ns config", stopCh, c.listerSynched) {
+	if !cache.WaitForNamedCacheSync("ns config", stopCh, c.listerSynced) {
 		return
 	}
 
