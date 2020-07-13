@@ -11,7 +11,7 @@ import (
 	"github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/controllers"
 	netdefv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	netfake "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned/fake"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -46,8 +46,9 @@ func NewFakeServer(hostname string) *Server {
 		return nil
 	}
 	hostPrefix := "/host"
+	networkPlugins := []string{"macvlan"}
 	containerRuntime := controllers.RuntimeKind(controllers.Docker)
-	podChanges := controllers.NewPodChangeTracker(containerRuntime, hostname, hostPrefix, netdefChanges)
+	podChanges := controllers.NewPodChangeTracker(containerRuntime, hostname, hostPrefix, networkPlugins, netdefChanges)
 	if podChanges == nil {
 		return nil
 	}
