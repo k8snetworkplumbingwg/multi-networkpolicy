@@ -274,7 +274,7 @@ var _ = Describe("policyrules testing", func() {
 			nil)
 		AddPod(s, pod1)
 
-		buf.renderIngress(s, pod1, ingressPolicies1)
+		buf.renderIngress(s, pod1, ingressPolicies1, []string{"testns1/net-attach1"})
 
 		portRules := []byte("-A MACVLAN-INGRESS-0-PORTS -m comment --comment \"comment\" -i net1 -m tcp -p tcp --dport 8888 -j MARK --set-xmark 0x10000/0x10000\n")
 		Expect(buf.ingressPorts.Bytes()).To(Equal(portRules))
@@ -360,7 +360,7 @@ COMMIT
 			})
 		AddPod(s, pod2)
 
-		buf.renderIngress(s, pod1, ingressPolicies1)
+		buf.renderIngress(s, pod1, ingressPolicies1, []string{"testns1/net-attach1"})
 
 		portRules := []byte("-A MACVLAN-INGRESS-0-PORTS -m comment --comment \"comment\" -i net1 -m tcp -p tcp --dport 8888 -j MARK --set-xmark 0x10000/0x10000\n")
 		Expect(buf.ingressPorts.Bytes()).To(Equal(portRules))
@@ -432,7 +432,7 @@ COMMIT
 			nil)
 		AddPod(s, pod1)
 
-		buf.renderEgress(s, pod1, egressPolicies1)
+		buf.renderEgress(s, pod1, egressPolicies1, []string{"testns1/net-attach1"})
 
 		portRules := []byte("-A MACVLAN-EGRESS-0-PORTS -m comment --comment \"comment\" -o net1 -m tcp -p tcp --dport 8888 -j MARK --set-xmark 0x10000/0x10000\n")
 		Expect(buf.egressPorts.Bytes()).To(Equal(portRules))
@@ -517,7 +517,7 @@ COMMIT
 			})
 		AddPod(s, pod2)
 
-		buf.renderEgress(s, pod1, egressPolicies1)
+		buf.renderEgress(s, pod1, egressPolicies1, []string{"testns1/net-attach1"})
 
 		portRules := []byte("-A MACVLAN-EGRESS-0-PORTS -m comment --comment \"comment\" -o net1 -m tcp -p tcp --dport 8888 -j MARK --set-xmark 0x10000/0x10000\n")
 		Expect(buf.egressPorts.Bytes()).To(Equal(portRules))
@@ -539,6 +539,351 @@ COMMIT
 -A MACVLAN-EGRESS -j DROP
 -A MACVLAN-EGRESS-0-PORTS -m comment --comment "comment" -o net1 -m tcp -p tcp --dport 8888 -j MARK --set-xmark 0x10000/0x10000
 -A MACVLAN-EGRESS-0-TO -o net1 -d 10.1.1.2 -j MARK --set-xmark 0x20000/0x20000
+COMMIT
+`)
+		Expect(buf.filterRules.Bytes()).To(Equal(finalizedRules))
+	})
+
+})
+
+var _ = Describe("policyrules testing - invalid case", func() {
+	It("Initialization", func() {
+		ipt := fakeiptables.NewFake()
+		Expect(ipt).NotTo(BeNil())
+		buf := newIptableBuffer()
+		Expect(buf).NotTo(BeNil())
+
+		// verify buf initialized at init
+		buf.Init(ipt)
+		filterChains := []byte("*filter\n:MACVLAN-INGRESS - [0:0]\n:MACVLAN-EGRESS - [0:0]\n")
+		Expect(buf.filterChains.Bytes()).To(Equal(filterChains))
+		emptyBytes := []byte("")
+		Expect(buf.policyIndex.Bytes()).To(Equal(emptyBytes))
+		Expect(buf.ingressPorts.Bytes()).To(Equal(emptyBytes))
+		Expect(buf.ingressFrom.Bytes()).To(Equal(emptyBytes))
+		Expect(buf.egressPorts.Bytes()).To(Equal(emptyBytes))
+		Expect(buf.egressTo.Bytes()).To(Equal(emptyBytes))
+
+		// finalize buf and verify rules buffer
+		buf.FinalizeRules()
+		filterRules := []byte("*filter\n:MACVLAN-INGRESS - [0:0]\n:MACVLAN-EGRESS - [0:0]\nCOMMIT\n")
+		Expect(buf.filterRules.Bytes()).To(Equal(filterRules))
+
+		// sync and verify iptable
+		Expect(buf.SyncRules(ipt)).To(BeNil())
+		iptableRules := bytes.NewBuffer(nil)
+		ipt.SaveInto(utiliptables.TableFilter, iptableRules)
+		Expect(iptableRules.Bytes()).To(Equal(filterRules))
+
+		// reset and verify empty
+		buf.Reset()
+		Expect(buf.policyIndex.Bytes()).To(Equal(emptyBytes))
+		Expect(buf.ingressPorts.Bytes()).To(Equal(emptyBytes))
+		Expect(buf.ingressFrom.Bytes()).To(Equal(emptyBytes))
+		Expect(buf.egressPorts.Bytes()).To(Equal(emptyBytes))
+		Expect(buf.egressTo.Bytes()).To(Equal(emptyBytes))
+	})
+
+	It("ingress rules ipblock", func() {
+		port := intstr.FromInt(8888)
+		protoTCP := v1.ProtocolTCP
+		ingressPolicies1 := []mvlanv1.MacvlanNetworkPolicyIngressRule{
+			mvlanv1.MacvlanNetworkPolicyIngressRule{
+				Ports: []mvlanv1.MacvlanNetworkPolicyPort{
+					mvlanv1.MacvlanNetworkPolicyPort{
+						Protocol: &protoTCP,
+						Port:     &port,
+					},
+				},
+				From: []mvlanv1.MacvlanNetworkPolicyPeer{
+					mvlanv1.MacvlanNetworkPolicyPeer{
+						IPBlock: &mvlanv1.IPBlock{
+							CIDR:   "10.1.1.1/24",
+							Except: []string{"10.1.1.1"},
+						},
+					},
+				},
+			},
+		}
+
+		ipt := fakeiptables.NewFake()
+		Expect(ipt).NotTo(BeNil())
+		buf := newIptableBuffer()
+		Expect(buf).NotTo(BeNil())
+
+		// verify buf initialized at init
+		buf.Init(ipt)
+		s := NewFakeServer("samplehost")
+		Expect(s).NotTo(BeNil())
+
+		Expect(s.netdefChanges.Update(
+			nil,
+			NewNetDef("testns1", "net-attach1", NewCNIConfig("testCNI", "macvlan")))).To(BeTrue())
+		Expect(s.netdefChanges.GetPluginType(types.NamespacedName{Namespace: "testns1", Name: "net-attach1"})).To(Equal("macvlan"))
+
+		pod1 := NewFakePodWithNetAnnotation(
+			"testns1",
+			"testpod1",
+			"net-attach1",
+			NewFakeNetworkStatus("testns1", "net-attach1", "192.168.1.1", "10.1.1.1"),
+			nil)
+		AddPod(s, pod1)
+
+		buf.renderIngress(s, pod1, ingressPolicies1, []string{})
+
+		portRules := []byte("")
+		Expect(buf.ingressPorts.Bytes()).To(Equal(portRules))
+
+		fromRules := []byte("")
+		Expect(buf.ingressFrom.Bytes()).To(Equal(fromRules))
+
+		buf.FinalizeRules()
+		finalizedRules := []byte(
+			`*filter
+:MACVLAN-INGRESS - [0:0]
+:MACVLAN-EGRESS - [0:0]
+:MACVLAN-INGRESS-0-PORTS - [0:0]
+:MACVLAN-INGRESS-0-FROM - [0:0]
+-A MACVLAN-INGRESS -j MARK --set-xmark 0x0/0x30000
+-A MACVLAN-INGRESS -j MACVLAN-INGRESS-0-PORTS
+-A MACVLAN-INGRESS -j MACVLAN-INGRESS-0-FROM
+-A MACVLAN-INGRESS -m mark --mark 0x30000/0x30000 -j RETURN
+-A MACVLAN-INGRESS -j DROP
+COMMIT
+`)
+		Expect(buf.filterRules.Bytes()).To(Equal(finalizedRules))
+	})
+
+	It("ingress rules podselector/matchlabels", func() {
+		port := intstr.FromInt(8888)
+		protoTCP := v1.ProtocolTCP
+		ingressPolicies1 := []mvlanv1.MacvlanNetworkPolicyIngressRule{
+			mvlanv1.MacvlanNetworkPolicyIngressRule{
+				Ports: []mvlanv1.MacvlanNetworkPolicyPort{
+					mvlanv1.MacvlanNetworkPolicyPort{
+						Protocol: &protoTCP,
+						Port:     &port,
+					},
+				},
+				From: []mvlanv1.MacvlanNetworkPolicyPeer{
+					mvlanv1.MacvlanNetworkPolicyPeer{
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"foobar": "enabled",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		ipt := fakeiptables.NewFake()
+		Expect(ipt).NotTo(BeNil())
+		buf := newIptableBuffer()
+		Expect(buf).NotTo(BeNil())
+
+		// verify buf initialized at init
+		buf.Init(ipt)
+		s := NewFakeServer("samplehost")
+		Expect(s).NotTo(BeNil())
+
+		AddNamespace(s, "testns1")
+
+		Expect(s.netdefChanges.Update(
+			nil,
+			NewNetDef("testns1", "net-attach1", NewCNIConfig("testCNI", "macvlan")))).To(BeTrue())
+		Expect(s.netdefChanges.GetPluginType(types.NamespacedName{Namespace: "testns1", Name: "net-attach1"})).To(Equal("macvlan"))
+
+		pod1 := NewFakePodWithNetAnnotation(
+			"testns1",
+			"testpod1",
+			"net-attach1",
+			NewFakeNetworkStatus("testns1", "net-attach1", "192.168.1.1", "10.1.1.1"),
+			nil)
+		AddPod(s, pod1)
+
+		pod2 := NewFakePodWithNetAnnotation(
+			"testns1",
+			"testpod2",
+			"net-attach1",
+			NewFakeNetworkStatus("testns1", "net-attach1", "192.168.1.2", "10.1.1.2"),
+			map[string]string{
+				"foobar": "enabled",
+			})
+		AddPod(s, pod2)
+
+		buf.renderIngress(s, pod1, ingressPolicies1, []string{})
+
+		portRules := []byte("")
+		Expect(buf.ingressPorts.Bytes()).To(Equal(portRules))
+
+		fromRules := []byte("")
+		Expect(buf.ingressFrom.Bytes()).To(Equal(fromRules))
+
+		buf.FinalizeRules()
+		finalizedRules := []byte(
+			`*filter
+:MACVLAN-INGRESS - [0:0]
+:MACVLAN-EGRESS - [0:0]
+:MACVLAN-INGRESS-0-PORTS - [0:0]
+:MACVLAN-INGRESS-0-FROM - [0:0]
+-A MACVLAN-INGRESS -j MARK --set-xmark 0x0/0x30000
+-A MACVLAN-INGRESS -j MACVLAN-INGRESS-0-PORTS
+-A MACVLAN-INGRESS -j MACVLAN-INGRESS-0-FROM
+-A MACVLAN-INGRESS -m mark --mark 0x30000/0x30000 -j RETURN
+-A MACVLAN-INGRESS -j DROP
+COMMIT
+`)
+		Expect(buf.filterRules.Bytes()).To(Equal(finalizedRules))
+	})
+
+	It("egress rules ipblock", func() {
+		port := intstr.FromInt(8888)
+		protoTCP := v1.ProtocolTCP
+		egressPolicies1 := []mvlanv1.MacvlanNetworkPolicyEgressRule{
+			mvlanv1.MacvlanNetworkPolicyEgressRule{
+				Ports: []mvlanv1.MacvlanNetworkPolicyPort{
+					mvlanv1.MacvlanNetworkPolicyPort{
+						Protocol: &protoTCP,
+						Port:     &port,
+					},
+				},
+				To: []mvlanv1.MacvlanNetworkPolicyPeer{
+					mvlanv1.MacvlanNetworkPolicyPeer{
+						IPBlock: &mvlanv1.IPBlock{
+							CIDR:   "10.1.1.1/24",
+							Except: []string{"10.1.1.1"},
+						},
+					},
+				},
+			},
+		}
+
+		ipt := fakeiptables.NewFake()
+		Expect(ipt).NotTo(BeNil())
+		buf := newIptableBuffer()
+		Expect(buf).NotTo(BeNil())
+
+		// verify buf initialized at init
+		buf.Init(ipt)
+		s := NewFakeServer("samplehost")
+		Expect(s).NotTo(BeNil())
+
+		Expect(s.netdefChanges.Update(
+			nil,
+			NewNetDef("testns1", "net-attach1", NewCNIConfig("testCNI", "macvlan")))).To(BeTrue())
+		Expect(s.netdefChanges.GetPluginType(types.NamespacedName{Namespace: "testns1", Name: "net-attach1"})).To(Equal("macvlan"))
+
+		pod1 := NewFakePodWithNetAnnotation(
+			"testns1",
+			"testpod1",
+			"net-attach1",
+			NewFakeNetworkStatus("testns1", "net-attach1", "192.168.1.1", "10.1.1.1"),
+			nil)
+		AddPod(s, pod1)
+
+		buf.renderEgress(s, pod1, egressPolicies1, []string{})
+
+		portRules := []byte("")
+		Expect(buf.egressPorts.Bytes()).To(Equal(portRules))
+
+		toRules := []byte("")
+		Expect(buf.egressTo.Bytes()).To(Equal(toRules))
+
+		buf.FinalizeRules()
+		finalizedRules := []byte(
+			`*filter
+:MACVLAN-INGRESS - [0:0]
+:MACVLAN-EGRESS - [0:0]
+:MACVLAN-EGRESS-0-PORTS - [0:0]
+:MACVLAN-EGRESS-0-TO - [0:0]
+-A MACVLAN-EGRESS -j MARK --set-xmark 0x0/0x30000
+-A MACVLAN-EGRESS -j MACVLAN-EGRESS-0-PORTS
+-A MACVLAN-EGRESS -j MACVLAN-EGRESS-0-TO
+-A MACVLAN-EGRESS -m mark --mark 0x30000/0x30000 -j RETURN
+-A MACVLAN-EGRESS -j DROP
+COMMIT
+`)
+		Expect(buf.filterRules.Bytes()).To(Equal(finalizedRules))
+	})
+
+	It("egress rules podselector/matchlabels", func() {
+		port := intstr.FromInt(8888)
+		protoTCP := v1.ProtocolTCP
+		egressPolicies1 := []mvlanv1.MacvlanNetworkPolicyEgressRule{
+			mvlanv1.MacvlanNetworkPolicyEgressRule{
+				Ports: []mvlanv1.MacvlanNetworkPolicyPort{
+					mvlanv1.MacvlanNetworkPolicyPort{
+						Protocol: &protoTCP,
+						Port:     &port,
+					},
+				},
+				To: []mvlanv1.MacvlanNetworkPolicyPeer{
+					mvlanv1.MacvlanNetworkPolicyPeer{
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"foobar": "enabled",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		ipt := fakeiptables.NewFake()
+		Expect(ipt).NotTo(BeNil())
+		buf := newIptableBuffer()
+		Expect(buf).NotTo(BeNil())
+
+		// verify buf initialized at init
+		buf.Init(ipt)
+		s := NewFakeServer("samplehost")
+		Expect(s).NotTo(BeNil())
+
+		AddNamespace(s, "testns1")
+
+		Expect(s.netdefChanges.Update(
+			nil,
+			NewNetDef("testns1", "net-attach1", NewCNIConfig("testCNI", "macvlan")))).To(BeTrue())
+		Expect(s.netdefChanges.GetPluginType(types.NamespacedName{Namespace: "testns1", Name: "net-attach1"})).To(Equal("macvlan"))
+
+		pod1 := NewFakePodWithNetAnnotation(
+			"testns1",
+			"testpod1",
+			"net-attach1",
+			NewFakeNetworkStatus("testns1", "net-attach1", "192.168.1.1", "10.1.1.1"),
+			nil)
+		AddPod(s, pod1)
+		pod2 := NewFakePodWithNetAnnotation(
+			"testns1",
+			"testpod2",
+			"net-attach1",
+			NewFakeNetworkStatus("testns1", "net-attach1", "192.168.1.2", "10.1.1.2"),
+			map[string]string{
+				"foobar": "enabled",
+			})
+		AddPod(s, pod2)
+
+		buf.renderEgress(s, pod1, egressPolicies1, []string{"testns2/net-attach1"})
+
+		portRules := []byte("")
+		Expect(buf.egressPorts.Bytes()).To(Equal(portRules))
+
+		toRules := []byte("")
+		Expect(buf.egressTo.Bytes()).To(Equal(toRules))
+
+		buf.FinalizeRules()
+		finalizedRules := []byte(
+			`*filter
+:MACVLAN-INGRESS - [0:0]
+:MACVLAN-EGRESS - [0:0]
+:MACVLAN-EGRESS-0-PORTS - [0:0]
+:MACVLAN-EGRESS-0-TO - [0:0]
+-A MACVLAN-EGRESS -j MARK --set-xmark 0x0/0x30000
+-A MACVLAN-EGRESS -j MACVLAN-EGRESS-0-PORTS
+-A MACVLAN-EGRESS -j MACVLAN-EGRESS-0-TO
+-A MACVLAN-EGRESS -m mark --mark 0x30000/0x30000 -j RETURN
+-A MACVLAN-EGRESS -j DROP
 COMMIT
 `)
 		Expect(buf.filterRules.Bytes()).To(Equal(finalizedRules))
