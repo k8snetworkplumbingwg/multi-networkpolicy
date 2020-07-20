@@ -419,7 +419,7 @@ func (s *Server) syncMacvlanPolicy() {
 
 				klog.Infof("XXX: pod: %s/%s %s", p.Namespace, p.Name, netnsPath)
 				_ = netns.Do(func(_ ns.NetNS) error {
-					return s.generatePolicyRules(p)
+					return s.generatePolicyRules(p, podInfo.MacvlanInterfaces)
 				})
 			}
 		}
@@ -431,19 +431,21 @@ const (
 	macvlanEgressChain  = "MACVLAN-EGRESS"
 )
 
-func (s *Server) generatePolicyRules(pod *v1.Pod) error {
+func (s *Server) generatePolicyRules(pod *v1.Pod, macvlanIntf []controllers.MacvlanInterfaceInfo) error {
 	fmt.Fprintf(os.Stderr, "XXX: Generate rules for Pod :%v/%v\n", pod.Namespace, pod.Name)
 	// -t filter -N MACVLAN-POLICY-INGRESS # ensure chain
 	s.ip4Tables.EnsureChain(utiliptables.TableFilter, macvlanIngressChain)
 	// -t filter -N MACVLAN-POLICY-EGRESS # ensure chain
 	s.ip4Tables.EnsureChain(utiliptables.TableFilter, macvlanEgressChain)
 
-	//    -A INPUT -j MACVLAN-POLICY-INGRESS # ensure rules
-	s.ip4Tables.EnsureRule(
-		utiliptables.Prepend, utiliptables.TableFilter, "INPUT", "-j", macvlanIngressChain)
-	//    -A OUTPUT -j MACVLAN-POLICY-EGRESS # ensure rules
-	s.ip4Tables.EnsureRule(
-		utiliptables.Prepend, utiliptables.TableFilter, "OUTPUT", "-j", macvlanEgressChain)
+	for _, macvlanIF := range macvlanIntf {
+		//    -A INPUT -j MACVLAN-POLICY-INGRESS # ensure rules
+		s.ip4Tables.EnsureRule(
+			utiliptables.Prepend, utiliptables.TableFilter, "INPUT", "-i", macvlanIF.InterfaceName, "-j", macvlanIngressChain)
+		//    -A OUTPUT -j MACVLAN-POLICY-EGRESS # ensure rules
+		s.ip4Tables.EnsureRule(
+			utiliptables.Prepend, utiliptables.TableFilter, "OUTPUT", "-o", macvlanIF.InterfaceName, "-j", macvlanEgressChain)
+	}
 
 	iptableBuffer := newIptableBuffer()
 	iptableBuffer.Init(s.ip4Tables)
