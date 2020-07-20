@@ -212,7 +212,7 @@ func NewServer(o *Options) (*Server, error) {
 	if nsChanges == nil {
 		return nil, fmt.Errorf("cannot create namespace change tracker")
 	}
-	podChanges := controllers.NewPodChangeTracker(o.containerRuntime, hostname, o.hostPrefix, netdefChanges)
+	podChanges := controllers.NewPodChangeTracker(o.containerRuntime, hostname, o.hostPrefix, o.networkPlugins, netdefChanges)
 	if podChanges == nil {
 		return nil, fmt.Errorf("cannot create pod change tracker")
 	}

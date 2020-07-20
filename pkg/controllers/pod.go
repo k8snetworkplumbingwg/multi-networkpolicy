@@ -31,7 +31,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	coreinformers "k8s.io/client-go/informers/core/v1"
@@ -68,7 +68,7 @@ type PodHandler interface {
 
 // PodConfig ...
 type PodConfig struct {
-	listerSynced cache.InformerSynced
+	listerSynced  cache.InformerSynced
 	eventHandlers []PodHandler
 }
 
@@ -200,9 +200,10 @@ type podChange struct {
 // Pods in the node, keyed by their namespace and name
 type PodChangeTracker struct {
 	// lock protects items.
-	lock          sync.Mutex
-	hostname      string
-	netdefChanges *NetDefChangeTracker
+	lock           sync.Mutex
+	hostname       string
+	networkPlugins []string
+	netdefChanges  *NetDefChangeTracker
 	// items maps a service to its podChange.
 	items map[types.NamespacedName]*podChange
 
@@ -328,13 +329,15 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 		}
 		namespacedName := types.NamespacedName{Namespace: netNamespace, Name: netName}
 
-		if networkPlugins[namespacedName] == "macvlan" {
-			macvlans = append(macvlans, MacvlanInterfaceInfo{
-				NetattachName: s.Name,
-				InterfaceName: s.Interface,
-				InterfaceType: networkPlugins[namespacedName],
-				IPs:           s.IPs,
-			})
+		for _, pluginName := range pct.networkPlugins {
+			if networkPlugins[namespacedName] == pluginName {
+				macvlans = append(macvlans, MacvlanInterfaceInfo{
+					NetattachName: s.Name,
+					InterfaceName: s.Interface,
+					InterfaceType: networkPlugins[namespacedName],
+					IPs:           s.IPs,
+				})
+			}
 		}
 	}
 
@@ -351,19 +354,19 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 }
 
 // NewPodChangeTracker ...
-func NewPodChangeTracker(runtime RuntimeKind, hostname, hostPrefix string, ndt *NetDefChangeTracker) *PodChangeTracker {
+func NewPodChangeTracker(runtime RuntimeKind, hostname, hostPrefix string, networkPlugins []string, ndt *NetDefChangeTracker) *PodChangeTracker {
 	switch runtime {
 	case Crio:
-		return NewPodChangeTrackerCrio(hostname, hostPrefix, ndt)
+		return NewPodChangeTrackerCrio(hostname, hostPrefix, networkPlugins, ndt)
 	case Docker:
-		return NewPodChangeTrackerDocker(hostname, hostPrefix, ndt)
+		return NewPodChangeTrackerDocker(hostname, hostPrefix, networkPlugins, ndt)
 	default:
 		klog.Errorf("unknown container runtime: %v", runtime)
 		return nil
 	}
 }
 
-func NewPodChangeTrackerCrio(hostname, hostPrefix string, ndt *NetDefChangeTracker) *PodChangeTracker {
+func NewPodChangeTrackerCrio(hostname, hostPrefix string, networkPlugins []string, ndt *NetDefChangeTracker) *PodChangeTracker {
 	crioClient, crioConn, err := GetCrioRuntimeClient(hostPrefix)
 	if err != nil {
 		klog.Errorf("failed to get crio client: %v", err)
@@ -371,15 +374,16 @@ func NewPodChangeTrackerCrio(hostname, hostPrefix string, ndt *NetDefChangeTrack
 	}
 
 	return &PodChangeTracker{
-		items:         make(map[types.NamespacedName]*podChange),
-		hostname:      hostname,
-		netdefChanges: ndt,
-		crioClient:    crioClient,
-		crioConn:      crioConn,
+		items:          make(map[types.NamespacedName]*podChange),
+		hostname:       hostname,
+		networkPlugins: networkPlugins,
+		netdefChanges:  ndt,
+		crioClient:     crioClient,
+		crioConn:       crioConn,
 	}
 }
 
-func NewPodChangeTrackerDocker(hostname, hostPrefix string, ndt *NetDefChangeTracker) *PodChangeTracker {
+func NewPodChangeTrackerDocker(hostname, hostPrefix string, networkPlugins []string, ndt *NetDefChangeTracker) *PodChangeTracker {
 	cli, err := docker.NewEnvClient()
 
 	if err != nil {
@@ -388,10 +392,11 @@ func NewPodChangeTrackerDocker(hostname, hostPrefix string, ndt *NetDefChangeTra
 	cli.NegotiateAPIVersion(context.TODO())
 
 	return &PodChangeTracker{
-		items:         make(map[types.NamespacedName]*podChange),
-		hostname:      hostname,
-		netdefChanges: ndt,
-		dockerClient:  cli,
+		items:          make(map[types.NamespacedName]*podChange),
+		hostname:       hostname,
+		networkPlugins: networkPlugins,
+		netdefChanges:  ndt,
+		dockerClient:   cli,
 	}
 }
 

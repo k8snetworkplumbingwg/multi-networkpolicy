@@ -22,6 +22,7 @@ type Options struct {
 	hostPrefix          string
 	containerRuntime    controllers.RuntimeKind
 	containerRuntimeStr string
+	networkPlugins      []string
 	// errCh is the channel that errors will be sent
 	errCh chan error
 }
@@ -35,6 +36,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.master, "master", o.master, "The address of the Kubernetes API server (overrides any value in kubeconfig)")
 	fs.StringVar(&o.hostnameOverride, "hostname-override", o.hostnameOverride, "If non-empty, will use this string as identification instead of the actual hostname.")
 	fs.StringVar(&o.hostPrefix, "host-prefix", o.hostnameOverride, "If non-empty, will use this string as prefix for host filesystem.")
+	fs.StringSliceVar(&o.networkPlugins, "network-plugins", []string{"macvlan"}, "List of network plugins to be be considered for network policies.")
 	fs.AddGoFlagSet(flag.CommandLine)
 }
 
