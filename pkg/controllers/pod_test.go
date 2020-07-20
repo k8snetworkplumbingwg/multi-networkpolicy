@@ -109,9 +109,10 @@ func NewFakePod(namespace, name string) *v1.Pod {
 
 func NewFakePodChangeTracker(hostname, hostPrefix string, ndt *NetDefChangeTracker) *PodChangeTracker {
 	return &PodChangeTracker{
-		items:         make(map[types.NamespacedName]*podChange),
-		hostname:      hostname,
-		netdefChanges: ndt,
+		items:          make(map[types.NamespacedName]*podChange),
+		hostname:       hostname,
+		netdefChanges:  ndt,
+		networkPlugins: []string{"macvlan"},
 	}
 }
 
