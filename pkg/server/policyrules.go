@@ -15,6 +15,8 @@ import (
 	utiliptables "k8s.io/kubernetes/pkg/util/iptables"
 )
 
+const PolicyNetworkAnnotation = "k8s.v1.cni.cncf.io/policy-for"
+
 /*
 // GetChainLines parses a table's iptables-save data to find chains in the table.
 // It returns a map of iptables.Chain to []byte where the []byte is the chain line
@@ -123,19 +125,19 @@ func (ipt *iptableBuffer) IsUsed() bool {
 	return (len(ipt.activeChain) != 0)
 }
 
-func (buf *iptableBuffer) renderIngress(s *Server, pod *v1.Pod, ingresses []mvlanv1.MacvlanNetworkPolicyIngressRule) {
+func (buf *iptableBuffer) renderIngress(s *Server, pod *v1.Pod, ingresses []mvlanv1.MacvlanNetworkPolicyIngressRule, policyNetworks []string) {
 	for n, ingress := range ingresses {
 		writeLine(buf.policyIndex, "-A", macvlanIngressChain,
 			"-j", "MARK", "--set-xmark 0x0/0x30000")
-		buf.renderIngressPorts(s, pod, n, ingress.Ports)
-		buf.renderIngressFrom(s, pod, n, ingress.From)
+		buf.renderIngressPorts(s, pod, n, ingress.Ports, policyNetworks)
+		buf.renderIngressFrom(s, pod, n, ingress.From, policyNetworks)
 		writeLine(buf.policyIndex, "-A", macvlanIngressChain,
 			"-m", "mark", "--mark", "0x30000/0x30000", "-j", "RETURN")
 	}
 	writeLine(buf.policyIndex, "-A", macvlanIngressChain, "-j", "DROP")
 }
 
-func (buf *iptableBuffer) renderIngressPorts(s *Server, pod *v1.Pod, index int, ports []mvlanv1.MacvlanNetworkPolicyPort) {
+func (buf *iptableBuffer) renderIngressPorts(s *Server, pod *v1.Pod, index int, ports []mvlanv1.MacvlanNetworkPolicyPort, policyNetworks []string) {
 	chainName := utiliptables.Chain(fmt.Sprintf("MACVLAN-INGRESS-%d-PORTS", index))
 
 	buf.activeChain[utiliptables.Chain(chainName)] = true
@@ -165,6 +167,9 @@ func (buf *iptableBuffer) renderIngressPorts(s *Server, pod *v1.Pod, index int, 
 			continue
 		}
 		for _, macvlanIF := range podinfo.MacvlanInterfaces {
+			if !macvlanIF.CheckPolicyNetwork(policyNetworks) {
+				continue
+			}
 			writeLine(buf.ingressPorts, "-A", string(chainName),
 				"-m", "comment", "--comment", "\"comment\"", "-i", macvlanIF.InterfaceName,
 				"-m", proto, "-p", proto, "--dport", port.Port.String(),
@@ -173,7 +178,7 @@ func (buf *iptableBuffer) renderIngressPorts(s *Server, pod *v1.Pod, index int, 
 	}
 }
 
-func (buf *iptableBuffer) renderIngressFrom(s *Server, pod *v1.Pod, index int, from []mvlanv1.MacvlanNetworkPolicyPeer) {
+func (buf *iptableBuffer) renderIngressFrom(s *Server, pod *v1.Pod, index int, from []mvlanv1.MacvlanNetworkPolicyPeer, policyNetworks []string) {
 	chainName := utiliptables.Chain(fmt.Sprintf("MACVLAN-INGRESS-%d-FROM", index))
 	podinfo, err := s.podMap.GetPodInfo(pod)
 	if err != nil {
@@ -235,7 +240,13 @@ func (buf *iptableBuffer) renderIngressFrom(s *Server, pod *v1.Pod, index int, f
 				}
 				sPodinfo, err := s.podMap.GetPodInfo(sPod)
 				for _, macvlan := range podinfo.MacvlanInterfaces {
+					if !macvlan.CheckPolicyNetwork(policyNetworks) {
+						continue
+					}
 					for _, sMacvlan := range sPodinfo.MacvlanInterfaces {
+						if !sMacvlan.CheckPolicyNetwork(policyNetworks) {
+							continue
+						}
 						for _, ip := range sMacvlan.IPs {
 							writeLine(buf.ingressFrom, "-A", string(chainName),
 								"-i", macvlan.InterfaceName, "-s", ip,
@@ -247,11 +258,17 @@ func (buf *iptableBuffer) renderIngressFrom(s *Server, pod *v1.Pod, index int, f
 		} else if peer.IPBlock != nil {
 			for _, except := range peer.IPBlock.Except {
 				for _, macvlan := range podinfo.MacvlanInterfaces {
+					if !macvlan.CheckPolicyNetwork(policyNetworks) {
+						continue
+					}
 					writeLine(buf.ingressFrom, "-A", string(chainName),
 						"-i", macvlan.InterfaceName, "-s", except, "-j", "DROP")
 				}
 			}
 			for _, macvlan := range podinfo.MacvlanInterfaces {
+				if !macvlan.CheckPolicyNetwork(policyNetworks) {
+					continue
+				}
 				writeLine(buf.ingressFrom, "-A", string(chainName),
 					"-i", macvlan.InterfaceName, "-s", peer.IPBlock.CIDR,
 					"-j", "MARK", "--set-xmark", "0x20000/0x20000")
@@ -262,17 +279,17 @@ func (buf *iptableBuffer) renderIngressFrom(s *Server, pod *v1.Pod, index int, f
 	}
 }
 
-func (buf *iptableBuffer) renderEgress(s *Server, pod *v1.Pod, egresses []mvlanv1.MacvlanNetworkPolicyEgressRule) {
+func (buf *iptableBuffer) renderEgress(s *Server, pod *v1.Pod, egresses []mvlanv1.MacvlanNetworkPolicyEgressRule, policyNetworks []string) {
 	for n, egress := range egresses {
 		writeLine(buf.policyIndex, "-A", macvlanEgressChain, "-j", "MARK", "--set-xmark 0x0/0x30000")
-		buf.renderEgressPorts(s, pod, n, egress.Ports)
-		buf.renderEgressTo(s, pod, n, egress.To)
+		buf.renderEgressPorts(s, pod, n, egress.Ports, policyNetworks)
+		buf.renderEgressTo(s, pod, n, egress.To, policyNetworks)
 		writeLine(buf.policyIndex, "-A", macvlanEgressChain, "-m", "mark", "--mark", "0x30000/0x30000", "-j", "RETURN")
 	}
 	writeLine(buf.policyIndex, "-A", macvlanEgressChain, "-j", "DROP")
 }
 
-func (buf *iptableBuffer) renderEgressPorts(s *Server, pod *v1.Pod, index int, ports []mvlanv1.MacvlanNetworkPolicyPort) {
+func (buf *iptableBuffer) renderEgressPorts(s *Server, pod *v1.Pod, index int, ports []mvlanv1.MacvlanNetworkPolicyPort, policyNetworks []string) {
 	chainName := utiliptables.Chain(fmt.Sprintf("MACVLAN-EGRESS-%d-PORTS", index))
 
 	buf.activeChain[utiliptables.Chain(chainName)] = true
@@ -302,6 +319,9 @@ func (buf *iptableBuffer) renderEgressPorts(s *Server, pod *v1.Pod, index int, p
 			continue
 		}
 		for _, macvlanIF := range podinfo.MacvlanInterfaces {
+			if !macvlanIF.CheckPolicyNetwork(policyNetworks) {
+				continue
+			}
 			writeLine(buf.egressPorts, "-A", string(chainName),
 				"-m", "comment", "--comment", "\"comment\"", "-o", macvlanIF.InterfaceName,
 				"-m", proto, "-p", proto, "--dport", port.Port.String(),
@@ -310,7 +330,7 @@ func (buf *iptableBuffer) renderEgressPorts(s *Server, pod *v1.Pod, index int, p
 	}
 }
 
-func (buf *iptableBuffer) renderEgressTo(s *Server, pod *v1.Pod, index int, to []mvlanv1.MacvlanNetworkPolicyPeer) {
+func (buf *iptableBuffer) renderEgressTo(s *Server, pod *v1.Pod, index int, to []mvlanv1.MacvlanNetworkPolicyPeer, policyNetworks []string) {
 	chainName := utiliptables.Chain(fmt.Sprintf("MACVLAN-EGRESS-%d-TO", index))
 	podinfo, err := s.podMap.GetPodInfo(pod)
 	if err != nil {
@@ -373,7 +393,13 @@ func (buf *iptableBuffer) renderEgressTo(s *Server, pod *v1.Pod, index int, to [
 				}
 				sPodinfo, err := s.podMap.GetPodInfo(sPod)
 				for _, macvlan := range podinfo.MacvlanInterfaces {
+					if !macvlan.CheckPolicyNetwork(policyNetworks) {
+						continue
+					}
 					for _, sMacvlan := range sPodinfo.MacvlanInterfaces {
+						if !sMacvlan.CheckPolicyNetwork(policyNetworks) {
+							continue
+						}
 						for _, ip := range sMacvlan.IPs {
 							writeLine(buf.egressTo, "-A", string(chainName),
 								"-o", macvlan.InterfaceName, "-d", ip,
@@ -385,11 +411,17 @@ func (buf *iptableBuffer) renderEgressTo(s *Server, pod *v1.Pod, index int, to [
 		} else if peer.IPBlock != nil {
 			for _, except := range peer.IPBlock.Except {
 				for _, macvlan := range podinfo.MacvlanInterfaces {
+					if !macvlan.CheckPolicyNetwork(policyNetworks) {
+						continue
+					}
 					writeLine(buf.egressTo, "-A", string(chainName),
 						"-o", macvlan.InterfaceName, "-d", except, "-j", "DROP")
 				}
 			}
 			for _, macvlan := range podinfo.MacvlanInterfaces {
+				if !macvlan.CheckPolicyNetwork(policyNetworks) {
+					continue
+				}
 				writeLine(buf.egressTo, "-A", string(chainName),
 					"-o", macvlan.InterfaceName, "-d", peer.IPBlock.CIDR,
 					"-j", "MARK", "--set-xmark", "0x20000/0x20000")

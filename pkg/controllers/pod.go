@@ -164,6 +164,16 @@ type MacvlanInterfaceInfo struct {
 	IPs           []string
 }
 
+func (info *MacvlanInterfaceInfo) CheckPolicyNetwork(policyNetworks []string) bool {
+	isExists := false
+	for _, policyNetworkName := range policyNetworks {
+		if policyNetworkName == info.NetattachName {
+			isExists = true
+		}
+	}
+	return isExists
+}
+
 // PodInfo contains information that defines a pod.
 type PodInfo struct {
 	Name              string

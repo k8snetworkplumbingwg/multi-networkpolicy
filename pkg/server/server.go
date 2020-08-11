@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -479,11 +480,24 @@ func (s *Server) generatePolicyRules(pod *v1.Pod, macvlanIntf []controllers.Macv
 
 		iptableBuffer.Reset()
 
+		policyNetworksAnnot, ok := policy.GetAnnotations()[PolicyNetworkAnnotation]
+		if !ok {
+			continue
+		}
+		policyNetworksAnnot = strings.ReplaceAll(policyNetworksAnnot, " ", "")
+		policyNetworks := strings.Split(policyNetworksAnnot, ",")
+		for idx, networkName := range policyNetworks {
+			// fill namespace
+			if strings.IndexAny(networkName, "/") == -1 {
+				policyNetworks[idx] = fmt.Sprintf("%s/%s", policy.GetNamespace(), networkName)
+			}
+		}
+
 		if ingressEnable {
-			iptableBuffer.renderIngress(s, pod, policy.Spec.Ingress)
+			iptableBuffer.renderIngress(s, pod, policy.Spec.Ingress, policyNetworks)
 		}
 		if egressEnable {
-			iptableBuffer.renderEgress(s, pod, policy.Spec.Egress)
+			iptableBuffer.renderEgress(s, pod, policy.Spec.Egress, policyNetworks)
 		}
 	}
 
