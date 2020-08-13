@@ -19,14 +19,14 @@ limitations under the License.
 package v1
 
 import (
-	v1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
-	"github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/clientset/versioned/scheme"
+	v1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
+	"github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
 type K8sCniCncfIoV1Interface interface {
 	RESTClient() rest.Interface
-	MacvlanNetworkPoliciesGetter
+	MultiNetworkPoliciesGetter
 }
 
 // K8sCniCncfIoV1Client is used to interact with features provided by the k8s.cni.cncf.io group.
@@ -34,8 +34,8 @@ type K8sCniCncfIoV1Client struct {
 	restClient rest.Interface
 }
 
-func (c *K8sCniCncfIoV1Client) MacvlanNetworkPolicies(namespace string) MacvlanNetworkPolicyInterface {
-	return newMacvlanNetworkPolicies(c, namespace)
+func (c *K8sCniCncfIoV1Client) MultiNetworkPolicies(namespace string) MultiNetworkPolicyInterface {
+	return newMultiNetworkPolicies(c, namespace)
 }
 
 // NewForConfig creates a new K8sCniCncfIoV1Client for the given config.

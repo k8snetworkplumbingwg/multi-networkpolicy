@@ -2,14 +2,14 @@
 FROM golang:1.14 as build
 
 # Add everything
-ADD . /usr/src/macvlan-networkpolicy
+ADD . /usr/src/multi-networkpolicy
 
-RUN cd /usr/src/macvlan-networkpolicy && \
-    go build ./cmd/macvlan-networkpolicy-node/
+RUN cd /usr/src/multi-networkpolicy && \
+    go build ./cmd/multi-networkpolicy-node/
 
 FROM centos:centos7
 RUN yum install -y iptables-utils
-COPY --from=build /usr/src/macvlan-networkpolicy/macvlan-networkpolicy-node /usr/bin
+COPY --from=build /usr/src/multi-networkpolicy/multi-networkpolicy-node /usr/bin
 WORKDIR /usr/bin
 
-ENTRYPOINT ["macvlan-networkpolicy-node"]
+ENTRYPOINT ["multi-networkpolicy-node"]

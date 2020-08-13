@@ -18,4 +18,4 @@ limitations under the License.
 
 package v1
 
-type MacvlanNetworkPolicyExpansion interface{}
+type MultiNetworkPolicyExpansion interface{}

@@ -19,8 +19,8 @@ limitations under the License.
 package k8s
 
 import (
-	internalinterfaces "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/informers/externalversions/k8s.cni.cncf.io/v1"
+	internalinterfaces "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/informers/externalversions/internalinterfaces"
+	v1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/informers/externalversions/k8s.cni.cncf.io/v1"
 )
 
 // Interface provides access to each of this group's versions.

@@ -18,10 +18,10 @@ limitations under the License.
 
 package v1
 
-// MacvlanNetworkPolicyListerExpansion allows custom methods to be added to
-// MacvlanNetworkPolicyLister.
-type MacvlanNetworkPolicyListerExpansion interface{}
+// MultiNetworkPolicyListerExpansion allows custom methods to be added to
+// MultiNetworkPolicyLister.
+type MultiNetworkPolicyListerExpansion interface{}
 
-// MacvlanNetworkPolicyNamespaceListerExpansion allows custom methods to be added to
-// MacvlanNetworkPolicyNamespaceLister.
-type MacvlanNetworkPolicyNamespaceListerExpansion interface{}
+// MultiNetworkPolicyNamespaceListerExpansion allows custom methods to be added to
+// MultiNetworkPolicyNamespaceLister.
+type MultiNetworkPolicyNamespaceListerExpansion interface{}

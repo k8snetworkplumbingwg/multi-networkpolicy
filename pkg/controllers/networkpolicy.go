@@ -22,8 +22,8 @@ import (
 	"sync"
 	"time"
 
-	mvlanv1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
-	mvlaninformerv1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/informers/externalversions/k8s.cni.cncf.io/v1"
+	multiv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
+	multiinformerv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/informers/externalversions/k8s.cni.cncf.io/v1"
 
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -36,13 +36,13 @@ import (
 type NetworkPolicyHandler interface {
 	// OnPolicyAdd is called whenever creation of new policy object
 	// is observed.
-	OnPolicyAdd(policy *mvlanv1.MacvlanNetworkPolicy)
+	OnPolicyAdd(policy *multiv1.MultiNetworkPolicy)
 	// OnPolicyUpdate is called whenever modification of an existing
 	// policy object is observed.
-	OnPolicyUpdate(oldPolicy, policy *mvlanv1.MacvlanNetworkPolicy)
+	OnPolicyUpdate(oldPolicy, policy *multiv1.MultiNetworkPolicy)
 	// OnPolicyDelete is called whenever deletion of an existing policy
 	// object is observed.
-	OnPolicyDelete(policy *mvlanv1.MacvlanNetworkPolicy)
+	OnPolicyDelete(policy *multiv1.MultiNetworkPolicy)
 	// OnPolicySynced is called once all the initial event handlers were
 	// called and the state is fully propagated to local cache.
 	OnPolicySynced()
@@ -55,7 +55,7 @@ type NetworkPolicyConfig struct {
 }
 
 // NewNetworkPolicyConfig creates a new NetworkPolicyConfig .
-func NewNetworkPolicyConfig(policyInformer mvlaninformerv1.MacvlanNetworkPolicyInformer, resyncPeriod time.Duration) *NetworkPolicyConfig {
+func NewNetworkPolicyConfig(policyInformer multiinformerv1.MultiNetworkPolicyInformer, resyncPeriod time.Duration) *NetworkPolicyConfig {
 	result := &NetworkPolicyConfig{
 		listerSynced: policyInformer.Informer().HasSynced,
 	}
@@ -91,7 +91,7 @@ func (c *NetworkPolicyConfig) Run(stopCh <-chan struct{}) {
 }
 
 func (c *NetworkPolicyConfig) handleAddPolicy(obj interface{}) {
-	policy, ok := obj.(*mvlanv1.MacvlanNetworkPolicy)
+	policy, ok := obj.(*multiv1.MultiNetworkPolicy)
 	if !ok {
 		utilruntime.HandleError(fmt.Errorf("unexpected object type: %v", obj))
 		return
@@ -104,12 +104,12 @@ func (c *NetworkPolicyConfig) handleAddPolicy(obj interface{}) {
 }
 
 func (c *NetworkPolicyConfig) handleUpdatePolicy(oldObj, newObj interface{}) {
-	oldPolicy, ok := oldObj.(*mvlanv1.MacvlanNetworkPolicy)
+	oldPolicy, ok := oldObj.(*multiv1.MultiNetworkPolicy)
 	if !ok {
 		utilruntime.HandleError(fmt.Errorf("unexpected object type: %v", oldObj))
 		return
 	}
-	policy, ok := newObj.(*mvlanv1.MacvlanNetworkPolicy)
+	policy, ok := newObj.(*multiv1.MultiNetworkPolicy)
 	if !ok {
 		utilruntime.HandleError(fmt.Errorf("unexpected object type: %v", newObj))
 		return
@@ -121,13 +121,13 @@ func (c *NetworkPolicyConfig) handleUpdatePolicy(oldObj, newObj interface{}) {
 }
 
 func (c *NetworkPolicyConfig) handleDeletePolicy(obj interface{}) {
-	policy, ok := obj.(*mvlanv1.MacvlanNetworkPolicy)
+	policy, ok := obj.(*multiv1.MultiNetworkPolicy)
 	if !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
 			utilruntime.HandleError(fmt.Errorf("unexpected object type: %v", obj))
 		}
-		if policy, ok = tombstone.Obj.(*mvlanv1.MacvlanNetworkPolicy); !ok {
+		if policy, ok = tombstone.Obj.(*multiv1.MultiNetworkPolicy); !ok {
 			utilruntime.HandleError(fmt.Errorf("unexpected object type: %v", obj))
 			return
 		}
@@ -140,7 +140,7 @@ func (c *NetworkPolicyConfig) handleDeletePolicy(obj interface{}) {
 
 // PolicyInfo contains information that defines a policy.
 type PolicyInfo struct {
-	Policy *mvlanv1.MacvlanNetworkPolicy
+	Policy *multiv1.MultiNetworkPolicy
 }
 
 // Name ...
@@ -222,14 +222,14 @@ func (pct *PolicyChangeTracker) String() string {
 	return fmt.Sprintf("policyChange: %v", pct.items)
 }
 
-func (pct *PolicyChangeTracker) newPolicyInfo(policy *mvlanv1.MacvlanNetworkPolicy) (*PolicyInfo, error) {
+func (pct *PolicyChangeTracker) newPolicyInfo(policy *multiv1.MultiNetworkPolicy) (*PolicyInfo, error) {
 	info := &PolicyInfo{
 		Policy: policy,
 	}
 	return info, nil
 }
 
-func (pct *PolicyChangeTracker) policyToPolicyMap(policy *mvlanv1.MacvlanNetworkPolicy) PolicyMap {
+func (pct *PolicyChangeTracker) policyToPolicyMap(policy *multiv1.MultiNetworkPolicy) PolicyMap {
 	if policy == nil {
 		return nil
 	}
@@ -244,7 +244,7 @@ func (pct *PolicyChangeTracker) policyToPolicyMap(policy *mvlanv1.MacvlanNetwork
 }
 
 // Update ...
-func (pct *PolicyChangeTracker) Update(previous, current *mvlanv1.MacvlanNetworkPolicy) bool {
+func (pct *PolicyChangeTracker) Update(previous, current *multiv1.MultiNetworkPolicy) bool {
 	policy := current
 
 	if pct == nil {

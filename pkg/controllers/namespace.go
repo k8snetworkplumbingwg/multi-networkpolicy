@@ -32,7 +32,7 @@ type NamespaceHandler interface {
 
 // NamespaceConfig ...
 type NamespaceConfig struct {
-	listerSynced cache.InformerSynced
+	listerSynced  cache.InformerSynced
 	eventHandlers []NamespaceHandler
 }
 

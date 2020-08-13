@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	v1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1"
+	v1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )
@@ -28,8 +28,8 @@ type FakeK8sCniCncfIoV1 struct {
 	*testing.Fake
 }
 
-func (c *FakeK8sCniCncfIoV1) MacvlanNetworkPolicies(namespace string) v1.MacvlanNetworkPolicyInterface {
-	return &FakeMacvlanNetworkPolicies{c, namespace}
+func (c *FakeK8sCniCncfIoV1) MultiNetworkPolicies(namespace string) v1.MultiNetworkPolicyInterface {
+	return &FakeMultiNetworkPolicies{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

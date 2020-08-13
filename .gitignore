@@ -2,7 +2,7 @@
 bin/
 
 # binary at the top
-./macvlan-networkpolicy-node
+./multi-networkpolicy-node
 
 # GOPATH created by the build script
 gopath/

@@ -156,15 +156,15 @@ func (c *PodConfig) handleDeletePod(obj interface{}) {
 	}
 }
 
-// MacvlanInterfaceInfo ...
-type MacvlanInterfaceInfo struct {
+// InterfaceInfo ...
+type InterfaceInfo struct {
 	NetattachName string
 	InterfaceName string
 	InterfaceType string
 	IPs           []string
 }
 
-func (info *MacvlanInterfaceInfo) CheckPolicyNetwork(policyNetworks []string) bool {
+func (info *InterfaceInfo) CheckPolicyNetwork(policyNetworks []string) bool {
 	isExists := false
 	for _, policyNetworkName := range policyNetworks {
 		if policyNetworkName == info.NetattachName {
@@ -176,12 +176,12 @@ func (info *MacvlanInterfaceInfo) CheckPolicyNetwork(policyNetworks []string) bo
 
 // PodInfo contains information that defines a pod.
 type PodInfo struct {
-	Name              string
-	Namespace         string
-	NetNSPath         string
-	NetworkStatus     []netdefv1.NetworkStatus
-	NodeName          string
-	MacvlanInterfaces []MacvlanInterfaceInfo
+	Name          string
+	Namespace     string
+	NetNSPath     string
+	NetworkStatus []netdefv1.NetworkStatus
+	NodeName      string
+	Interfaces    []InterfaceInfo
 }
 
 // GetMultusNetIFs ...
@@ -326,7 +326,7 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 	klog.Infof("netdef->pluginMap: %v", networkPlugins)
 
 	// match it with
-	var macvlans []MacvlanInterfaceInfo
+	var netifs []InterfaceInfo
 	for _, s := range statuses {
 		var netNamespace, netName string
 		slashItems := strings.Split(s.Name, "/")
@@ -341,7 +341,7 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 
 		for _, pluginName := range pct.networkPlugins {
 			if networkPlugins[namespacedName] == pluginName {
-				macvlans = append(macvlans, MacvlanInterfaceInfo{
+				netifs = append(netifs, InterfaceInfo{
 					NetattachName: s.Name,
 					InterfaceName: s.Interface,
 					InterfaceType: networkPlugins[namespacedName],
@@ -351,14 +351,14 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 		}
 	}
 
-	klog.Infof("Pod: %s/%s netns:%s macvlanIF:%v", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, netnsPath, macvlans)
+	klog.Infof("Pod: %s/%s netns:%s netIF:%v", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, netnsPath, netifs)
 	info := &PodInfo{
-		Name:              pod.ObjectMeta.Name,
-		Namespace:         pod.ObjectMeta.Namespace,
-		NetworkStatus:     statuses,
-		NetNSPath:         netnsPath,
-		NodeName:          pod.Spec.NodeName,
-		MacvlanInterfaces: macvlans,
+		Name:          pod.ObjectMeta.Name,
+		Namespace:     pod.ObjectMeta.Namespace,
+		NetworkStatus: statuses,
+		NetNSPath:     netnsPath,
+		NodeName:      pod.Spec.NodeName,
+		Interfaces:    netifs,
 	}
 	return info, nil
 }

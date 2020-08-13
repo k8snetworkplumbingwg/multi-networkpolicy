@@ -19,13 +19,13 @@ limitations under the License.
 package v1
 
 import (
-	internalinterfaces "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/informers/externalversions/internalinterfaces"
+	internalinterfaces "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// MacvlanNetworkPolicies returns a MacvlanNetworkPolicyInformer.
-	MacvlanNetworkPolicies() MacvlanNetworkPolicyInformer
+	// MultiNetworkPolicies returns a MultiNetworkPolicyInformer.
+	MultiNetworkPolicies() MultiNetworkPolicyInformer
 }
 
 type version struct {
@@ -39,7 +39,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// MacvlanNetworkPolicies returns a MacvlanNetworkPolicyInformer.
-func (v *version) MacvlanNetworkPolicies() MacvlanNetworkPolicyInformer {
-	return &macvlanNetworkPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// MultiNetworkPolicies returns a MultiNetworkPolicyInformer.
+func (v *version) MultiNetworkPolicies() MultiNetworkPolicyInformer {
+	return &multiNetworkPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

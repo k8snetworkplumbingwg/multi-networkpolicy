@@ -11,7 +11,7 @@ jobs:
       DOCKER_CLI_EXPERIMENTAL: enabled
       GO111MODULE: on
       TARGET: amd64
-      REPOSITORY: nfvpe/macvlan-networkpolicy
+      REPOSITORY: nfvpe/multi-networkpolicy
       REPOSITORY_USER: nfvperobot
     steps:
       - name: Check out code into the Go module directory
@@ -26,18 +26,18 @@ jobs:
           docker tag ${REPOSITORY}:latest-amd64 ${REPOSITORY}:${GITHUB_REF##*/}-amd64
 
       - name: Login to registry
-        if: github.repository == 'k8snetworkplumbingwg/macvlan-networkpolicy'
+        if: github.repository == 'k8snetworkplumbingwg/multi-networkpolicy'
         run: docker login -u ${REPOSITORY_USER} -p ${{ secrets. REPOSITORY_PASS }}
 
       - name: Push latest/snapshot images
-        if: github.repository == 'k8snetworkplumbingwg/macvlan-networkpolicy'
+        if: github.repository == 'k8snetworkplumbingwg/multi-networkpolicy'
         run: |
           docker push ${REPOSITORY}:latest-amd64
           docker push ${REPOSITORY}:stable-amd64
           docker push ${REPOSITORY}:${GITHUB_REF##*/}-amd64
 
       - name: Create manifest for multi-arch images
-        if: github.repository == 'k8snetworkplumbingwg/macvlan-networkpolicy'
+        if: github.repository == 'k8snetworkplumbingwg/multi-networkpolicy'
         run: |
           docker manifest create ${REPOSITORY}:stable ${REPOSITORY}:stable-amd64
           docker manifest annotate ${REPOSITORY}:stable ${REPOSITORY}:stable-amd64 --arch amd64

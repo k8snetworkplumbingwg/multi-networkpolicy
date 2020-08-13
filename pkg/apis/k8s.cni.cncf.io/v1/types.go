@@ -9,74 +9,74 @@ import (
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +resourceName=macvlan-networkpolicies
+// +resourceName=multi-networkpolicies
 
-// MacvlanNetworkPolicy ...
-type MacvlanNetworkPolicy struct {
+// MultiNetworkPolicy ...
+type MultiNetworkPolicy struct {
 	metav1.TypeMeta `json:",inline"`
 	// Standard object's metadata.
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// +optional
-	Spec MacvlanNetworkPolicySpec `json:"spec,omitempty"`
+	Spec MultiNetworkPolicySpec `json:"spec,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// MacvlanNetworkPolicyList ...
-type MacvlanNetworkPolicyList struct {
+// MultiNetworkPolicyList ...
+type MultiNetworkPolicyList struct {
 	metav1.TypeMeta `json:",inline"`
 	// Standard object's metadata.
 	// +optional
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	Items []MacvlanNetworkPolicy `json:"items"`
+	Items []MultiNetworkPolicy `json:"items"`
 }
 
-// MacvlanPolicyType ...
-type MacvlanPolicyType string
+// MultiPolicyType ...
+type MultiPolicyType string
 
 const (
 	// PolicyTypeIngress ...
-	PolicyTypeIngress MacvlanPolicyType = "Ingress"
+	PolicyTypeIngress MultiPolicyType = "Ingress"
 	// PolicyTypeEgress ...
-	PolicyTypeEgress MacvlanPolicyType = "Egress"
+	PolicyTypeEgress MultiPolicyType = "Egress"
 )
 
-// MacvlanNetworkPolicySpec ...
-type MacvlanNetworkPolicySpec struct {
+// MultiNetworkPolicySpec ...
+type MultiNetworkPolicySpec struct {
 	PodSelector metav1.LabelSelector `json:"podSelector"`
 
 	// +optional
-	Ingress []MacvlanNetworkPolicyIngressRule `json:"ingress,omitempty"`
+	Ingress []MultiNetworkPolicyIngressRule `json:"ingress,omitempty"`
 
 	// +optional
-	Egress []MacvlanNetworkPolicyEgressRule `json:"egress,omitempty"`
+	Egress []MultiNetworkPolicyEgressRule `json:"egress,omitempty"`
 	// +optional
-	PolicyTypes []MacvlanPolicyType `json:"policyTypes,omitempty"`
+	PolicyTypes []MultiPolicyType `json:"policyTypes,omitempty"`
 }
 
-// MacvlanNetworkPolicyIngressRule ...
-type MacvlanNetworkPolicyIngressRule struct {
+// MultiNetworkPolicyIngressRule ...
+type MultiNetworkPolicyIngressRule struct {
 	// +optional
-	Ports []MacvlanNetworkPolicyPort `json:"ports,omitempty"`
+	Ports []MultiNetworkPolicyPort `json:"ports,omitempty"`
 
 	// +optional
-	From []MacvlanNetworkPolicyPeer `json:"from,omitempty"`
+	From []MultiNetworkPolicyPeer `json:"from,omitempty"`
 }
 
-// MacvlanNetworkPolicyEgressRule ...
-type MacvlanNetworkPolicyEgressRule struct {
+// MultiNetworkPolicyEgressRule ...
+type MultiNetworkPolicyEgressRule struct {
 	// +optional
-	Ports []MacvlanNetworkPolicyPort `json:"ports,omitempty"`
+	Ports []MultiNetworkPolicyPort `json:"ports,omitempty"`
 
 	// +optional
-	To []MacvlanNetworkPolicyPeer `json:"to,omitempty"`
+	To []MultiNetworkPolicyPeer `json:"to,omitempty"`
 }
 
-// MacvlanNetworkPolicyPort ...
-type MacvlanNetworkPolicyPort struct {
+// MultiNetworkPolicyPort ...
+type MultiNetworkPolicyPort struct {
 	// +optional
 	Protocol *v1.Protocol `json:"protocol,omitempty"`
 
@@ -91,8 +91,8 @@ type IPBlock struct {
 	Except []string `json:"except,omitempty"`
 }
 
-// MacvlanNetworkPolicyPeer ...
-type MacvlanNetworkPolicyPeer struct {
+// MultiNetworkPolicyPeer ...
+type MultiNetworkPolicyPeer struct {
 	// +optional
 	PodSelector *metav1.LabelSelector `json:"podSelector,omitempty"`
 

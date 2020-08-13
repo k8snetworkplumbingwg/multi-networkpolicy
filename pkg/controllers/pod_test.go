@@ -212,7 +212,7 @@ var _ = Describe("pod controller", func() {
 		Expect(ok).To(BeTrue())
 		Expect(pod1.Name).To(Equal("testpod1"))
 		Expect(pod1.Namespace).To(Equal("testns1"))
-		Expect(len(pod1.MacvlanInterfaces)).To(Equal(1))
+		Expect(len(pod1.Interfaces)).To(Equal(1))
 	})
 
 	It("Add pod with net-attach annotation and verify", func() {
@@ -229,7 +229,7 @@ var _ = Describe("pod controller", func() {
 		Expect(ok).To(BeTrue())
 		Expect(pod1.Name).To(Equal("testpod1"))
 		Expect(pod1.Namespace).To(Equal("testns1"))
-		Expect(len(pod1.MacvlanInterfaces)).To(Equal(0))
+		Expect(len(pod1.Interfaces)).To(Equal(0))
 
 		Expect(podChanges.Update(NewFakePod("testns1", "testpod1"), NewFakePodWithNetAnnotation("testns1", "testpod1", "net-attach1", NewFakeNetworkStatus("testns1", "net-attach1")))).To(BeTrue())
 
@@ -240,7 +240,7 @@ var _ = Describe("pod controller", func() {
 		Expect(ok).To(BeTrue())
 		Expect(pod2.Name).To(Equal("testpod1"))
 		Expect(pod2.Namespace).To(Equal("testns1"))
-		Expect(len(pod2.MacvlanInterfaces)).To(Equal(1))
+		Expect(len(pod2.Interfaces)).To(Equal(1))
 	})
 
 })

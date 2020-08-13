@@ -317,6 +317,8 @@ github.com/juju/loggo v0.0.0-20190526231331-6e530bcce5d8/go.mod h1:vgyd7OREkbtVE
 github.com/juju/testing v0.0.0-20190613124551-e81189438503/go.mod h1:63prj8cnj0tU0S9OHjGJn+b1h0ZghCndfnbQolrYTwA=
 github.com/julienschmidt/httprouter v1.2.0/go.mod h1:SYymIcj16QtmaHHD7aYtjjsJG7VTCxuUUipMqKk8s4w=
 github.com/jung-kurt/gofpdf v1.0.3-0.20190309125859-24315acbbda5/go.mod h1:7Id9E/uU8ce6rXgefFLlgrJj/GYY22cpxn+r32jIOes=
+github.com/k8snetworkplumbingwg/macvlan-networkpolicy v0.0.0-20200811141625-d0147e419a61 h1:lXDSF5r95mvEJDT3s0CG+iAgGWth9Qp9wVZEuNBIWzY=
+github.com/k8snetworkplumbingwg/macvlan-networkpolicy v0.0.0-20200811141625-d0147e419a61/go.mod h1:VDZwFYypYPEqGde7xTEfuC9Cbi8Z5ztqYayT4egjwoQ=
 github.com/k8snetworkplumbingwg/network-attachment-definition-client v0.0.0-20200528071255-22c819bc6e7e h1:hUUlPyMm/B8azg109Fx+mSbC3rRP7GNBTeEbU/qlRgA=
 github.com/k8snetworkplumbingwg/network-attachment-definition-client v0.0.0-20200528071255-22c819bc6e7e/go.mod h1:g5bRWdyVeE9zGaKok219FZWcLbo2Lb+ANdvfVa637Mw=
 github.com/karrick/godirwalk v1.7.5/go.mod h1:2c9FRhkDxdIbgkOnCEvnSWs71Bhugbl46shStcFDJ34=

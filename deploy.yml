@@ -2,7 +2,7 @@
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: macvlan-networkpolicy
+  name: multi-networkpolicy
 rules:
   - apiGroups: ["k8s.cni.cncf.io"]
     resources:
@@ -37,43 +37,43 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: macvlan-networkpolicy
+  name: multi-networkpolicy
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: macvlan-networkpolicy
+  name: multi-networkpolicy
 subjects:
 - kind: ServiceAccount
-  name: macvlan-networkpolicy
+  name: multi-networkpolicy
   namespace: kube-system
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: macvlan-networkpolicy
+  name: multi-networkpolicy
   namespace: kube-system
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: macvlan-networkpolicy-ds-amd64
+  name: multi-networkpolicy-ds-amd64
   namespace: kube-system
   labels:
     tier: node
-    app: macvlan-networkpolicy
-    name: macvlan-networkpolicy
+    app: multi-networkpolicy
+    name: multi-networkpolicy
 spec:
   selector:
     matchLabels:
-      name: macvlan-networkpolicy
+      name: multi-networkpolicy
   updateStrategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
         tier: node
-        app: macvlan-networkpolicy
-        name: macvlan-networkpolicy
+        app: multi-networkpolicy
+        name: multi-networkpolicy
     spec:
       hostNetwork: true
       nodeSelector:
@@ -81,13 +81,13 @@ spec:
       tolerations:
       - operator: Exists
         effect: NoSchedule
-      serviceAccountName: macvlan-networkpolicy
+      serviceAccountName: multi-networkpolicy
       containers:
-      - name: macvlan-networkpolicy
+      - name: multi-networkpolicy
         # crio support requires multus:latest for now. support 3.3 or later.
-        image: nfvpe/macvlan-networkpolicy:snapshot-amd64
+        image: nfvpe/multi-networkpolicy:snapshot-amd64
         imagePullPolicy: Always
-        command: ["/usr/bin/macvlan-network-policy-node"]
+        command: ["/usr/bin/multi-network-policy-node"]
         args:
         - "--host-prefix=/host"
         resources:

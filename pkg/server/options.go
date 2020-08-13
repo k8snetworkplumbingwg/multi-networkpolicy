@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/controllers"
+	"github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/controllers"
 	"github.com/spf13/pflag"
 
 	"k8s.io/klog"

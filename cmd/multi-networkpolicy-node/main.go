@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/server"
+	"github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/server"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -39,7 +39,7 @@ func main() {
 	opts := server.NewOptions()
 
 	cmd := &cobra.Command{
-		Use:  "macvlan-networkpolicy-node",
+		Use:  "multi-networkpolicy-node",
 		Long: `TBD`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := opts.Validate(); err != nil {

@@ -4,9 +4,9 @@ import (
 	//"fmt"
 	"time"
 
-	mvlanv1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
-	mvlanfake "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/clientset/versioned/fake"
-	mvlaninformerv1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/informers/externalversions"
+	multiv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
+	multifake "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/clientset/versioned/fake"
+	multiinformerv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/informers/externalversions"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -22,15 +22,15 @@ type FakeNetworkPolicyConfigStub struct {
 	CounterSynced int
 }
 
-func (f *FakeNetworkPolicyConfigStub) OnPolicyAdd(_ *mvlanv1.MacvlanNetworkPolicy) {
+func (f *FakeNetworkPolicyConfigStub) OnPolicyAdd(_ *multiv1.MultiNetworkPolicy) {
 	f.CounterAdd++
 }
 
-func (f *FakeNetworkPolicyConfigStub) OnPolicyUpdate(_, _ *mvlanv1.MacvlanNetworkPolicy) {
+func (f *FakeNetworkPolicyConfigStub) OnPolicyUpdate(_, _ *multiv1.MultiNetworkPolicy) {
 	f.CounterUpdate++
 }
 
-func (f *FakeNetworkPolicyConfigStub) OnPolicyDelete(_ *mvlanv1.MacvlanNetworkPolicy) {
+func (f *FakeNetworkPolicyConfigStub) OnPolicyDelete(_ *multiv1.MultiNetworkPolicy) {
 	f.CounterDelete++
 }
 
@@ -40,15 +40,15 @@ func (f *FakeNetworkPolicyConfigStub) OnPolicySynced() {
 
 func NewFakeNetworkPolicyConfig(stub *FakeNetworkPolicyConfigStub) *NetworkPolicyConfig {
 	configSync := 15 * time.Minute
-	fakeClient := mvlanfake.NewSimpleClientset()
-	informerFactory := mvlaninformerv1.NewSharedInformerFactoryWithOptions(fakeClient, configSync)
-	policyConfig := NewNetworkPolicyConfig(informerFactory.K8sCniCncfIo().V1().MacvlanNetworkPolicies(), configSync)
+	fakeClient := multifake.NewSimpleClientset()
+	informerFactory := multiinformerv1.NewSharedInformerFactoryWithOptions(fakeClient, configSync)
+	policyConfig := NewNetworkPolicyConfig(informerFactory.K8sCniCncfIo().V1().MultiNetworkPolicies(), configSync)
 	policyConfig.RegisterEventHandler(stub)
 	return policyConfig
 }
 
-func NewNetworkPolicy(namespace, name string) *mvlanv1.MacvlanNetworkPolicy {
-	return &mvlanv1.MacvlanNetworkPolicy{
+func NewNetworkPolicy(namespace, name string) *multiv1.MultiNetworkPolicy {
+	return &multiv1.MultiNetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 			Name:      name,

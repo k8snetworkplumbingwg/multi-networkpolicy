@@ -37,7 +37,7 @@ jobs:
         run: go vet ./...
 
       - name: Build
-        run: GOARCH="${TARGET}" go build ./cmd/macvlan-networkpolicy-node/
+        run: GOARCH="${TARGET}" go build ./cmd/multi-networkpolicy-node/
 
 # TBD:
 #      - name: Go test

@@ -21,7 +21,7 @@ package versioned
 import (
 	"fmt"
 
-	k8scnicncfiov1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1"
+	k8scnicncfiov1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

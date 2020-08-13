@@ -10,11 +10,11 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 
-	mvlanv1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
-	macvlanclient "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/clientset/versioned"
-	mvlaninformerv1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/informers/externalversions"
-	mvlanlisterv1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/client/listers/k8s.cni.cncf.io/v1"
-	"github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/controllers"
+	multiv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
+	multiclient "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/clientset/versioned"
+	multiinformerv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/informers/externalversions"
+	multilisterv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/listers/k8s.cni.cncf.io/v1"
+	"github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/controllers"
 	netdefv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	netdefclient "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned"
 	netdefinformerv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/informers/externalversions"
@@ -54,7 +54,7 @@ type Server struct {
 	Client              clientset.Interface
 	Hostname            string
 	hostPrefix          string
-	NetworkPolicyClient macvlanclient.Interface
+	NetworkPolicyClient multiclient.Interface
 	NetDefClient        netdefclient.Interface
 	Broadcaster         record.EventBroadcaster
 	Recorder            record.EventRecorder
@@ -72,7 +72,7 @@ type Server struct {
 	nsSynced     bool
 
 	podLister    corelisters.PodLister
-	policyLister mvlanlisterv1.MacvlanNetworkPolicyLister
+	policyLister multilisterv1.MultiNetworkPolicyLister
 
 	syncRunner *async.BoundedFrequencyRunner
 }
@@ -103,12 +103,12 @@ func (s *Server) Run(hostname string) error {
 	go nsConfig.Run(wait.NeverStop)
 	informerFactory.Start(wait.NeverStop)
 
-	policyInformerFactory := mvlaninformerv1.NewSharedInformerFactoryWithOptions(
+	policyInformerFactory := multiinformerv1.NewSharedInformerFactoryWithOptions(
 		s.NetworkPolicyClient, s.ConfigSyncPeriod)
-	s.policyLister = policyInformerFactory.K8sCniCncfIo().V1().MacvlanNetworkPolicies().Lister()
+	s.policyLister = policyInformerFactory.K8sCniCncfIo().V1().MultiNetworkPolicies().Lister()
 
 	policyConfig := controllers.NewNetworkPolicyConfig(
-		policyInformerFactory.K8sCniCncfIo().V1().MacvlanNetworkPolicies(), s.ConfigSyncPeriod)
+		policyInformerFactory.K8sCniCncfIo().V1().MultiNetworkPolicies(), s.ConfigSyncPeriod)
 	policyConfig.RegisterEventHandler(s)
 	go policyConfig.Run(wait.NeverStop)
 	policyInformerFactory.Start(wait.NeverStop)
@@ -170,7 +170,7 @@ func NewServer(o *Options) (*Server, error) {
 		return nil, err
 	}
 
-	networkPolicyClient, err := macvlanclient.NewForConfig(kubeConfig)
+	networkPolicyClient, err := multiclient.NewForConfig(kubeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func NewServer(o *Options) (*Server, error) {
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(
 		scheme.Scheme,
-		v1.EventSource{Component: "macvlan-networkpolicy-node", Host: hostname})
+		v1.EventSource{Component: "multi-networkpolicy-node", Host: hostname})
 
 	nodeRef := &v1.ObjectReference{
 		Kind:      "Node",
@@ -241,10 +241,10 @@ func NewServer(o *Options) (*Server, error) {
 		namespaceMap:  make(controllers.NamespaceMap),
 	}
 	server.syncRunner = async.NewBoundedFrequencyRunner(
-		"sync-runner", server.syncMacvlanPolicy, minSyncPeriod, syncPeriod, burstSyncs)
+		"sync-runner", server.syncMultiPolicy, minSyncPeriod, syncPeriod, burstSyncs)
 
 	// XXX: Need to monitor?
-	//server.ipt4Interface.Monitor(utiliptables.Chain("MACVLAN-NETWORK-POLICY")
+	//server.ipt4Interface.Monitor(utiliptables.Chain("MULTI-NETWORK-POLICY")
 	return server, nil
 }
 
@@ -287,17 +287,17 @@ func (s *Server) OnPodSynced() {
 	s.setInitialized(s.podSynced)
 	s.mu.Unlock()
 
-	s.syncMacvlanPolicy()
+	s.syncMultiPolicy()
 }
 
 // OnPolicyAdd ...
-func (s *Server) OnPolicyAdd(policy *mvlanv1.MacvlanNetworkPolicy) {
+func (s *Server) OnPolicyAdd(policy *multiv1.MultiNetworkPolicy) {
 	klog.V(4).Infof("OnPolicyAdd")
 	s.OnPolicyUpdate(nil, policy)
 }
 
 // OnPolicyUpdate ...
-func (s *Server) OnPolicyUpdate(oldPolicy, policy *mvlanv1.MacvlanNetworkPolicy) {
+func (s *Server) OnPolicyUpdate(oldPolicy, policy *multiv1.MultiNetworkPolicy) {
 	klog.V(4).Infof("OnPolicyUpdate")
 	if s.policyChanges.Update(oldPolicy, policy) && s.isInitialized() {
 		s.Sync()
@@ -305,7 +305,7 @@ func (s *Server) OnPolicyUpdate(oldPolicy, policy *mvlanv1.MacvlanNetworkPolicy)
 }
 
 // OnPolicyDelete ...
-func (s *Server) OnPolicyDelete(policy *mvlanv1.MacvlanNetworkPolicy) {
+func (s *Server) OnPolicyDelete(policy *multiv1.MultiNetworkPolicy) {
 	klog.V(4).Infof("OnPolicyDelete")
 	s.OnPolicyUpdate(policy, nil)
 }
@@ -389,8 +389,8 @@ func (s *Server) OnNamespaceSynced() {
 	}
 }
 
-func (s *Server) syncMacvlanPolicy() {
-	klog.Infof("syncMacvlanPolicy")
+func (s *Server) syncMultiPolicy() {
+	klog.Infof("syncMultiPolicy")
 	s.podMap.Update(s.podChanges)
 	s.policyMap.Update(s.policyChanges)
 
@@ -403,8 +403,8 @@ func (s *Server) syncMacvlanPolicy() {
 		if p.Spec.NodeName == s.Hostname {
 			namespacedName := types.NamespacedName{Namespace: p.Namespace, Name: p.Name}
 			if podInfo, ok := s.podMap[namespacedName]; ok {
-				if len(podInfo.MacvlanInterfaces) == 0 {
-					klog.Infof("XXX: skipped due to no macvlan")
+				if len(podInfo.Interfaces) == 0 {
+					klog.Infof("XXX: skipped due to no multi")
 					continue
 				}
 				netnsPath := podInfo.NetNSPath
@@ -420,7 +420,7 @@ func (s *Server) syncMacvlanPolicy() {
 
 				klog.Infof("XXX: pod: %s/%s %s", p.Namespace, p.Name, netnsPath)
 				_ = netns.Do(func(_ ns.NetNS) error {
-					return s.generatePolicyRules(p, podInfo.MacvlanInterfaces)
+					return s.generatePolicyRules(p, podInfo.Interfaces)
 				})
 			}
 		}
@@ -428,24 +428,24 @@ func (s *Server) syncMacvlanPolicy() {
 }
 
 const (
-	macvlanIngressChain = "MACVLAN-INGRESS"
-	macvlanEgressChain  = "MACVLAN-EGRESS"
+	ingressChain = "MULTI-INGRESS"
+	egressChain  = "MULTI-EGRESS"
 )
 
-func (s *Server) generatePolicyRules(pod *v1.Pod, macvlanIntf []controllers.MacvlanInterfaceInfo) error {
+func (s *Server) generatePolicyRules(pod *v1.Pod, multiIntf []controllers.InterfaceInfo) error {
 	fmt.Fprintf(os.Stderr, "XXX: Generate rules for Pod :%v/%v\n", pod.Namespace, pod.Name)
-	// -t filter -N MACVLAN-POLICY-INGRESS # ensure chain
-	s.ip4Tables.EnsureChain(utiliptables.TableFilter, macvlanIngressChain)
-	// -t filter -N MACVLAN-POLICY-EGRESS # ensure chain
-	s.ip4Tables.EnsureChain(utiliptables.TableFilter, macvlanEgressChain)
+	// -t filter -N MULTI-POLICY-INGRESS # ensure chain
+	s.ip4Tables.EnsureChain(utiliptables.TableFilter, ingressChain)
+	// -t filter -N MULTI-POLICY-EGRESS # ensure chain
+	s.ip4Tables.EnsureChain(utiliptables.TableFilter, egressChain)
 
-	for _, macvlanIF := range macvlanIntf {
-		//    -A INPUT -j MACVLAN-POLICY-INGRESS # ensure rules
+	for _, multiIF := range multiIntf {
+		//    -A INPUT -j MULTI-POLICY-INGRESS # ensure rules
 		s.ip4Tables.EnsureRule(
-			utiliptables.Prepend, utiliptables.TableFilter, "INPUT", "-i", macvlanIF.InterfaceName, "-j", macvlanIngressChain)
-		//    -A OUTPUT -j MACVLAN-POLICY-EGRESS # ensure rules
+			utiliptables.Prepend, utiliptables.TableFilter, "INPUT", "-i", multiIF.InterfaceName, "-j", ingressChain)
+		//    -A OUTPUT -j MULTI-POLICY-EGRESS # ensure rules
 		s.ip4Tables.EnsureRule(
-			utiliptables.Prepend, utiliptables.TableFilter, "OUTPUT", "-o", macvlanIF.InterfaceName, "-j", macvlanEgressChain)
+			utiliptables.Prepend, utiliptables.TableFilter, "OUTPUT", "-o", multiIF.InterfaceName, "-j", egressChain)
 	}
 
 	iptableBuffer := newIptableBuffer()
@@ -469,9 +469,9 @@ func (s *Server) generatePolicyRules(pod *v1.Pod, macvlanIntf []controllers.Macv
 		} else {
 			for _, v := range policy.Spec.PolicyTypes {
 				switch v {
-				case mvlanv1.PolicyTypeIngress:
+				case multiv1.PolicyTypeIngress:
 					ingressEnable = true
-				case mvlanv1.PolicyTypeEgress:
+				case multiv1.PolicyTypeEgress:
 					egressEnable = true
 				}
 			}

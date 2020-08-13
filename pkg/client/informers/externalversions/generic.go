@@ -21,7 +21,7 @@ package externalversions
 import (
 	"fmt"
 
-	v1 "github.com/k8snetworkplumbingwg/macvlan-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
+	v1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -53,8 +53,8 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=k8s.cni.cncf.io, Version=v1
-	case v1.SchemeGroupVersion.WithResource("macvlan-networkpolicies"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.K8sCniCncfIo().V1().MacvlanNetworkPolicies().Informer()}, nil
+	case v1.SchemeGroupVersion.WithResource("multi-networkpolicies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.K8sCniCncfIo().V1().MultiNetworkPolicies().Informer()}, nil
 
 	}
 

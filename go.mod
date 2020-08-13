@@ -1,4 +1,4 @@
-module github.com/k8snetworkplumbingwg/macvlan-networkpolicy
+module github.com/k8snetworkplumbingwg/multi-networkpolicy
 
 go 1.13
 
@@ -6,6 +6,7 @@ require (
 	github.com/containernetworking/cni v0.7.1
 	github.com/containernetworking/plugins v0.8.5
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
+	github.com/k8snetworkplumbingwg/macvlan-networkpolicy v0.0.0-20200811141625-d0147e419a61
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v0.0.0-20200528071255-22c819bc6e7e
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.7.0
