@@ -2,4 +2,4 @@
 // +groupName=k8s.cni.cncf.io
 // +groupGoName=K8sCniCncfIo
 
-package v1
+package v1beta1

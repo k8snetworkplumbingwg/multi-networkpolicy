@@ -21,7 +21,7 @@ package versioned
 import (
 	"fmt"
 
-	k8scnicncfiov1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1"
+	k8scnicncfiov1beta1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1beta1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -29,19 +29,19 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	K8sCniCncfIoV1() k8scnicncfiov1.K8sCniCncfIoV1Interface
+	K8sCniCncfIoV1beta1() k8scnicncfiov1beta1.K8sCniCncfIoV1beta1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	k8sCniCncfIoV1 *k8scnicncfiov1.K8sCniCncfIoV1Client
+	k8sCniCncfIoV1beta1 *k8scnicncfiov1beta1.K8sCniCncfIoV1beta1Client
 }
 
-// K8sCniCncfIoV1 retrieves the K8sCniCncfIoV1Client
-func (c *Clientset) K8sCniCncfIoV1() k8scnicncfiov1.K8sCniCncfIoV1Interface {
-	return c.k8sCniCncfIoV1
+// K8sCniCncfIoV1beta1 retrieves the K8sCniCncfIoV1beta1Client
+func (c *Clientset) K8sCniCncfIoV1beta1() k8scnicncfiov1beta1.K8sCniCncfIoV1beta1Interface {
+	return c.k8sCniCncfIoV1beta1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -65,7 +65,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.k8sCniCncfIoV1, err = k8scnicncfiov1.NewForConfig(&configShallowCopy)
+	cs.k8sCniCncfIoV1beta1, err = k8scnicncfiov1beta1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.k8sCniCncfIoV1 = k8scnicncfiov1.NewForConfigOrDie(c)
+	cs.k8sCniCncfIoV1beta1 = k8scnicncfiov1beta1.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -90,7 +90,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.k8sCniCncfIoV1 = k8scnicncfiov1.New(c)
+	cs.k8sCniCncfIoV1beta1 = k8scnicncfiov1beta1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

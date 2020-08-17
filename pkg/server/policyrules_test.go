@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	multiv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
+	multiv1beta1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1beta1"
 	multifake "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/clientset/versioned/fake"
 	"github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/controllers"
 	netdefv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
@@ -232,17 +232,17 @@ var _ = Describe("policyrules testing", func() {
 	It("ingress rules ipblock", func() {
 		port := intstr.FromInt(8888)
 		protoTCP := v1.ProtocolTCP
-		ingressPolicies1 := []multiv1.MultiNetworkPolicyIngressRule{
-			multiv1.MultiNetworkPolicyIngressRule{
-				Ports: []multiv1.MultiNetworkPolicyPort{
-					multiv1.MultiNetworkPolicyPort{
+		ingressPolicies1 := []multiv1beta1.MultiNetworkPolicyIngressRule{
+			multiv1beta1.MultiNetworkPolicyIngressRule{
+				Ports: []multiv1beta1.MultiNetworkPolicyPort{
+					multiv1beta1.MultiNetworkPolicyPort{
 						Protocol: &protoTCP,
 						Port:     &port,
 					},
 				},
-				From: []multiv1.MultiNetworkPolicyPeer{
-					multiv1.MultiNetworkPolicyPeer{
-						IPBlock: &multiv1.IPBlock{
+				From: []multiv1beta1.MultiNetworkPolicyPeer{
+					multiv1beta1.MultiNetworkPolicyPeer{
+						IPBlock: &multiv1beta1.IPBlock{
 							CIDR:   "10.1.1.1/24",
 							Except: []string{"10.1.1.1"},
 						},
@@ -305,16 +305,16 @@ COMMIT
 	It("ingress rules podselector/matchlabels", func() {
 		port := intstr.FromInt(8888)
 		protoTCP := v1.ProtocolTCP
-		ingressPolicies1 := []multiv1.MultiNetworkPolicyIngressRule{
-			multiv1.MultiNetworkPolicyIngressRule{
-				Ports: []multiv1.MultiNetworkPolicyPort{
-					multiv1.MultiNetworkPolicyPort{
+		ingressPolicies1 := []multiv1beta1.MultiNetworkPolicyIngressRule{
+			multiv1beta1.MultiNetworkPolicyIngressRule{
+				Ports: []multiv1beta1.MultiNetworkPolicyPort{
+					multiv1beta1.MultiNetworkPolicyPort{
 						Protocol: &protoTCP,
 						Port:     &port,
 					},
 				},
-				From: []multiv1.MultiNetworkPolicyPeer{
-					multiv1.MultiNetworkPolicyPeer{
+				From: []multiv1beta1.MultiNetworkPolicyPeer{
+					multiv1beta1.MultiNetworkPolicyPeer{
 						PodSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
 								"foobar": "enabled",
@@ -390,17 +390,17 @@ COMMIT
 	It("egress rules ipblock", func() {
 		port := intstr.FromInt(8888)
 		protoTCP := v1.ProtocolTCP
-		egressPolicies1 := []multiv1.MultiNetworkPolicyEgressRule{
-			multiv1.MultiNetworkPolicyEgressRule{
-				Ports: []multiv1.MultiNetworkPolicyPort{
-					multiv1.MultiNetworkPolicyPort{
+		egressPolicies1 := []multiv1beta1.MultiNetworkPolicyEgressRule{
+			multiv1beta1.MultiNetworkPolicyEgressRule{
+				Ports: []multiv1beta1.MultiNetworkPolicyPort{
+					multiv1beta1.MultiNetworkPolicyPort{
 						Protocol: &protoTCP,
 						Port:     &port,
 					},
 				},
-				To: []multiv1.MultiNetworkPolicyPeer{
-					multiv1.MultiNetworkPolicyPeer{
-						IPBlock: &multiv1.IPBlock{
+				To: []multiv1beta1.MultiNetworkPolicyPeer{
+					multiv1beta1.MultiNetworkPolicyPeer{
+						IPBlock: &multiv1beta1.IPBlock{
 							CIDR:   "10.1.1.1/24",
 							Except: []string{"10.1.1.1"},
 						},
@@ -463,16 +463,16 @@ COMMIT
 	It("egress rules podselector/matchlabels", func() {
 		port := intstr.FromInt(8888)
 		protoTCP := v1.ProtocolTCP
-		egressPolicies1 := []multiv1.MultiNetworkPolicyEgressRule{
-			multiv1.MultiNetworkPolicyEgressRule{
-				Ports: []multiv1.MultiNetworkPolicyPort{
-					multiv1.MultiNetworkPolicyPort{
+		egressPolicies1 := []multiv1beta1.MultiNetworkPolicyEgressRule{
+			multiv1beta1.MultiNetworkPolicyEgressRule{
+				Ports: []multiv1beta1.MultiNetworkPolicyPort{
+					multiv1beta1.MultiNetworkPolicyPort{
 						Protocol: &protoTCP,
 						Port:     &port,
 					},
 				},
-				To: []multiv1.MultiNetworkPolicyPeer{
-					multiv1.MultiNetworkPolicyPeer{
+				To: []multiv1beta1.MultiNetworkPolicyPeer{
+					multiv1beta1.MultiNetworkPolicyPeer{
 						PodSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
 								"foobar": "enabled",
@@ -587,17 +587,17 @@ var _ = Describe("policyrules testing - invalid case", func() {
 	It("ingress rules ipblock", func() {
 		port := intstr.FromInt(8888)
 		protoTCP := v1.ProtocolTCP
-		ingressPolicies1 := []multiv1.MultiNetworkPolicyIngressRule{
-			multiv1.MultiNetworkPolicyIngressRule{
-				Ports: []multiv1.MultiNetworkPolicyPort{
-					multiv1.MultiNetworkPolicyPort{
+		ingressPolicies1 := []multiv1beta1.MultiNetworkPolicyIngressRule{
+			multiv1beta1.MultiNetworkPolicyIngressRule{
+				Ports: []multiv1beta1.MultiNetworkPolicyPort{
+					multiv1beta1.MultiNetworkPolicyPort{
 						Protocol: &protoTCP,
 						Port:     &port,
 					},
 				},
-				From: []multiv1.MultiNetworkPolicyPeer{
-					multiv1.MultiNetworkPolicyPeer{
-						IPBlock: &multiv1.IPBlock{
+				From: []multiv1beta1.MultiNetworkPolicyPeer{
+					multiv1beta1.MultiNetworkPolicyPeer{
+						IPBlock: &multiv1beta1.IPBlock{
 							CIDR:   "10.1.1.1/24",
 							Except: []string{"10.1.1.1"},
 						},
@@ -657,16 +657,16 @@ COMMIT
 	It("ingress rules podselector/matchlabels", func() {
 		port := intstr.FromInt(8888)
 		protoTCP := v1.ProtocolTCP
-		ingressPolicies1 := []multiv1.MultiNetworkPolicyIngressRule{
-			multiv1.MultiNetworkPolicyIngressRule{
-				Ports: []multiv1.MultiNetworkPolicyPort{
-					multiv1.MultiNetworkPolicyPort{
+		ingressPolicies1 := []multiv1beta1.MultiNetworkPolicyIngressRule{
+			multiv1beta1.MultiNetworkPolicyIngressRule{
+				Ports: []multiv1beta1.MultiNetworkPolicyPort{
+					multiv1beta1.MultiNetworkPolicyPort{
 						Protocol: &protoTCP,
 						Port:     &port,
 					},
 				},
-				From: []multiv1.MultiNetworkPolicyPeer{
-					multiv1.MultiNetworkPolicyPeer{
+				From: []multiv1beta1.MultiNetworkPolicyPeer{
+					multiv1beta1.MultiNetworkPolicyPeer{
 						PodSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
 								"foobar": "enabled",
@@ -740,17 +740,17 @@ COMMIT
 	It("egress rules ipblock", func() {
 		port := intstr.FromInt(8888)
 		protoTCP := v1.ProtocolTCP
-		egressPolicies1 := []multiv1.MultiNetworkPolicyEgressRule{
-			multiv1.MultiNetworkPolicyEgressRule{
-				Ports: []multiv1.MultiNetworkPolicyPort{
-					multiv1.MultiNetworkPolicyPort{
+		egressPolicies1 := []multiv1beta1.MultiNetworkPolicyEgressRule{
+			multiv1beta1.MultiNetworkPolicyEgressRule{
+				Ports: []multiv1beta1.MultiNetworkPolicyPort{
+					multiv1beta1.MultiNetworkPolicyPort{
 						Protocol: &protoTCP,
 						Port:     &port,
 					},
 				},
-				To: []multiv1.MultiNetworkPolicyPeer{
-					multiv1.MultiNetworkPolicyPeer{
-						IPBlock: &multiv1.IPBlock{
+				To: []multiv1beta1.MultiNetworkPolicyPeer{
+					multiv1beta1.MultiNetworkPolicyPeer{
+						IPBlock: &multiv1beta1.IPBlock{
 							CIDR:   "10.1.1.1/24",
 							Except: []string{"10.1.1.1"},
 						},
@@ -810,16 +810,16 @@ COMMIT
 	It("egress rules podselector/matchlabels", func() {
 		port := intstr.FromInt(8888)
 		protoTCP := v1.ProtocolTCP
-		egressPolicies1 := []multiv1.MultiNetworkPolicyEgressRule{
-			multiv1.MultiNetworkPolicyEgressRule{
-				Ports: []multiv1.MultiNetworkPolicyPort{
-					multiv1.MultiNetworkPolicyPort{
+		egressPolicies1 := []multiv1beta1.MultiNetworkPolicyEgressRule{
+			multiv1beta1.MultiNetworkPolicyEgressRule{
+				Ports: []multiv1beta1.MultiNetworkPolicyPort{
+					multiv1beta1.MultiNetworkPolicyPort{
 						Protocol: &protoTCP,
 						Port:     &port,
 					},
 				},
-				To: []multiv1.MultiNetworkPolicyPeer{
-					multiv1.MultiNetworkPolicyPeer{
+				To: []multiv1beta1.MultiNetworkPolicyPeer{
+					multiv1beta1.MultiNetworkPolicyPeer{
 						PodSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
 								"foobar": "enabled",

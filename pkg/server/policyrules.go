@@ -6,7 +6,7 @@ import (
 	//"os"
 	"strings"
 
-	multiv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
+	multiv1beta1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1beta1"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -125,7 +125,7 @@ func (ipt *iptableBuffer) IsUsed() bool {
 	return (len(ipt.activeChain) != 0)
 }
 
-func (buf *iptableBuffer) renderIngress(s *Server, pod *v1.Pod, ingresses []multiv1.MultiNetworkPolicyIngressRule, policyNetworks []string) {
+func (buf *iptableBuffer) renderIngress(s *Server, pod *v1.Pod, ingresses []multiv1beta1.MultiNetworkPolicyIngressRule, policyNetworks []string) {
 	for n, ingress := range ingresses {
 		writeLine(buf.policyIndex, "-A", ingressChain,
 			"-j", "MARK", "--set-xmark 0x0/0x30000")
@@ -137,7 +137,7 @@ func (buf *iptableBuffer) renderIngress(s *Server, pod *v1.Pod, ingresses []mult
 	writeLine(buf.policyIndex, "-A", ingressChain, "-j", "DROP")
 }
 
-func (buf *iptableBuffer) renderIngressPorts(s *Server, pod *v1.Pod, index int, ports []multiv1.MultiNetworkPolicyPort, policyNetworks []string) {
+func (buf *iptableBuffer) renderIngressPorts(s *Server, pod *v1.Pod, index int, ports []multiv1beta1.MultiNetworkPolicyPort, policyNetworks []string) {
 	chainName := utiliptables.Chain(fmt.Sprintf("MULTI-INGRESS-%d-PORTS", index))
 
 	buf.activeChain[utiliptables.Chain(chainName)] = true
@@ -178,7 +178,7 @@ func (buf *iptableBuffer) renderIngressPorts(s *Server, pod *v1.Pod, index int, 
 	}
 }
 
-func (buf *iptableBuffer) renderIngressFrom(s *Server, pod *v1.Pod, index int, from []multiv1.MultiNetworkPolicyPeer, policyNetworks []string) {
+func (buf *iptableBuffer) renderIngressFrom(s *Server, pod *v1.Pod, index int, from []multiv1beta1.MultiNetworkPolicyPeer, policyNetworks []string) {
 	chainName := utiliptables.Chain(fmt.Sprintf("MULTI-INGRESS-%d-FROM", index))
 	podinfo, err := s.podMap.GetPodInfo(pod)
 	if err != nil {
@@ -279,7 +279,7 @@ func (buf *iptableBuffer) renderIngressFrom(s *Server, pod *v1.Pod, index int, f
 	}
 }
 
-func (buf *iptableBuffer) renderEgress(s *Server, pod *v1.Pod, egresses []multiv1.MultiNetworkPolicyEgressRule, policyNetworks []string) {
+func (buf *iptableBuffer) renderEgress(s *Server, pod *v1.Pod, egresses []multiv1beta1.MultiNetworkPolicyEgressRule, policyNetworks []string) {
 	for n, egress := range egresses {
 		writeLine(buf.policyIndex, "-A", egressChain, "-j", "MARK", "--set-xmark 0x0/0x30000")
 		buf.renderEgressPorts(s, pod, n, egress.Ports, policyNetworks)
@@ -289,7 +289,7 @@ func (buf *iptableBuffer) renderEgress(s *Server, pod *v1.Pod, egresses []multiv
 	writeLine(buf.policyIndex, "-A", egressChain, "-j", "DROP")
 }
 
-func (buf *iptableBuffer) renderEgressPorts(s *Server, pod *v1.Pod, index int, ports []multiv1.MultiNetworkPolicyPort, policyNetworks []string) {
+func (buf *iptableBuffer) renderEgressPorts(s *Server, pod *v1.Pod, index int, ports []multiv1beta1.MultiNetworkPolicyPort, policyNetworks []string) {
 	chainName := utiliptables.Chain(fmt.Sprintf("MULTI-EGRESS-%d-PORTS", index))
 
 	buf.activeChain[utiliptables.Chain(chainName)] = true
@@ -330,7 +330,7 @@ func (buf *iptableBuffer) renderEgressPorts(s *Server, pod *v1.Pod, index int, p
 	}
 }
 
-func (buf *iptableBuffer) renderEgressTo(s *Server, pod *v1.Pod, index int, to []multiv1.MultiNetworkPolicyPeer, policyNetworks []string) {
+func (buf *iptableBuffer) renderEgressTo(s *Server, pod *v1.Pod, index int, to []multiv1beta1.MultiNetworkPolicyPeer, policyNetworks []string) {
 	chainName := utiliptables.Chain(fmt.Sprintf("MULTI-EGRESS-%d-TO", index))
 	podinfo, err := s.podMap.GetPodInfo(pod)
 	if err != nil {

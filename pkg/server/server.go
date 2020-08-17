@@ -10,10 +10,10 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 
-	multiv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
+	multiv1beta1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1beta1"
 	multiclient "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/clientset/versioned"
-	multiinformerv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/informers/externalversions"
-	multilisterv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/listers/k8s.cni.cncf.io/v1"
+	multiinformer "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/informers/externalversions"
+	multilisterv1beta1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/listers/k8s.cni.cncf.io/v1beta1"
 	"github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/controllers"
 	netdefv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	netdefclient "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned"
@@ -72,7 +72,7 @@ type Server struct {
 	nsSynced     bool
 
 	podLister    corelisters.PodLister
-	policyLister multilisterv1.MultiNetworkPolicyLister
+	policyLister multilisterv1beta1.MultiNetworkPolicyLister
 
 	syncRunner *async.BoundedFrequencyRunner
 }
@@ -103,12 +103,12 @@ func (s *Server) Run(hostname string) error {
 	go nsConfig.Run(wait.NeverStop)
 	informerFactory.Start(wait.NeverStop)
 
-	policyInformerFactory := multiinformerv1.NewSharedInformerFactoryWithOptions(
+	policyInformerFactory := multiinformer.NewSharedInformerFactoryWithOptions(
 		s.NetworkPolicyClient, s.ConfigSyncPeriod)
-	s.policyLister = policyInformerFactory.K8sCniCncfIo().V1().MultiNetworkPolicies().Lister()
+	s.policyLister = policyInformerFactory.K8sCniCncfIo().V1beta1().MultiNetworkPolicies().Lister()
 
 	policyConfig := controllers.NewNetworkPolicyConfig(
-		policyInformerFactory.K8sCniCncfIo().V1().MultiNetworkPolicies(), s.ConfigSyncPeriod)
+		policyInformerFactory.K8sCniCncfIo().V1beta1().MultiNetworkPolicies(), s.ConfigSyncPeriod)
 	policyConfig.RegisterEventHandler(s)
 	go policyConfig.Run(wait.NeverStop)
 	policyInformerFactory.Start(wait.NeverStop)
@@ -291,13 +291,13 @@ func (s *Server) OnPodSynced() {
 }
 
 // OnPolicyAdd ...
-func (s *Server) OnPolicyAdd(policy *multiv1.MultiNetworkPolicy) {
+func (s *Server) OnPolicyAdd(policy *multiv1beta1.MultiNetworkPolicy) {
 	klog.V(4).Infof("OnPolicyAdd")
 	s.OnPolicyUpdate(nil, policy)
 }
 
 // OnPolicyUpdate ...
-func (s *Server) OnPolicyUpdate(oldPolicy, policy *multiv1.MultiNetworkPolicy) {
+func (s *Server) OnPolicyUpdate(oldPolicy, policy *multiv1beta1.MultiNetworkPolicy) {
 	klog.V(4).Infof("OnPolicyUpdate")
 	if s.policyChanges.Update(oldPolicy, policy) && s.isInitialized() {
 		s.Sync()
@@ -305,7 +305,7 @@ func (s *Server) OnPolicyUpdate(oldPolicy, policy *multiv1.MultiNetworkPolicy) {
 }
 
 // OnPolicyDelete ...
-func (s *Server) OnPolicyDelete(policy *multiv1.MultiNetworkPolicy) {
+func (s *Server) OnPolicyDelete(policy *multiv1beta1.MultiNetworkPolicy) {
 	klog.V(4).Infof("OnPolicyDelete")
 	s.OnPolicyUpdate(policy, nil)
 }
@@ -469,9 +469,9 @@ func (s *Server) generatePolicyRules(pod *v1.Pod, multiIntf []controllers.Interf
 		} else {
 			for _, v := range policy.Spec.PolicyTypes {
 				switch v {
-				case multiv1.PolicyTypeIngress:
+				case multiv1beta1.PolicyTypeIngress:
 					ingressEnable = true
-				case multiv1.PolicyTypeEgress:
+				case multiv1beta1.PolicyTypeEgress:
 					egressEnable = true
 				}
 			}

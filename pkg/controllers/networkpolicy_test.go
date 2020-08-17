@@ -4,9 +4,9 @@ import (
 	//"fmt"
 	"time"
 
-	multiv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1"
+	multiv1beta1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1beta1"
 	multifake "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/clientset/versioned/fake"
-	multiinformerv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/informers/externalversions"
+	multiinformerv1beta1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/informers/externalversions"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -22,15 +22,15 @@ type FakeNetworkPolicyConfigStub struct {
 	CounterSynced int
 }
 
-func (f *FakeNetworkPolicyConfigStub) OnPolicyAdd(_ *multiv1.MultiNetworkPolicy) {
+func (f *FakeNetworkPolicyConfigStub) OnPolicyAdd(_ *multiv1beta1.MultiNetworkPolicy) {
 	f.CounterAdd++
 }
 
-func (f *FakeNetworkPolicyConfigStub) OnPolicyUpdate(_, _ *multiv1.MultiNetworkPolicy) {
+func (f *FakeNetworkPolicyConfigStub) OnPolicyUpdate(_, _ *multiv1beta1.MultiNetworkPolicy) {
 	f.CounterUpdate++
 }
 
-func (f *FakeNetworkPolicyConfigStub) OnPolicyDelete(_ *multiv1.MultiNetworkPolicy) {
+func (f *FakeNetworkPolicyConfigStub) OnPolicyDelete(_ *multiv1beta1.MultiNetworkPolicy) {
 	f.CounterDelete++
 }
 
@@ -41,14 +41,14 @@ func (f *FakeNetworkPolicyConfigStub) OnPolicySynced() {
 func NewFakeNetworkPolicyConfig(stub *FakeNetworkPolicyConfigStub) *NetworkPolicyConfig {
 	configSync := 15 * time.Minute
 	fakeClient := multifake.NewSimpleClientset()
-	informerFactory := multiinformerv1.NewSharedInformerFactoryWithOptions(fakeClient, configSync)
-	policyConfig := NewNetworkPolicyConfig(informerFactory.K8sCniCncfIo().V1().MultiNetworkPolicies(), configSync)
+	informerFactory := multiinformerv1beta1.NewSharedInformerFactoryWithOptions(fakeClient, configSync)
+	policyConfig := NewNetworkPolicyConfig(informerFactory.K8sCniCncfIo().V1beta1().MultiNetworkPolicies(), configSync)
 	policyConfig.RegisterEventHandler(stub)
 	return policyConfig
 }
 
-func NewNetworkPolicy(namespace, name string) *multiv1.MultiNetworkPolicy {
-	return &multiv1.MultiNetworkPolicy{
+func NewNetworkPolicy(namespace, name string) *multiv1beta1.MultiNetworkPolicy {
+	return &multiv1beta1.MultiNetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 			Name:      name,

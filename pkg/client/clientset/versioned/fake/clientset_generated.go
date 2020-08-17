@@ -20,8 +20,8 @@ package fake
 
 import (
 	clientset "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/clientset/versioned"
-	k8scnicncfiov1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1"
-	fakek8scnicncfiov1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1/fake"
+	k8scnicncfiov1beta1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1beta1"
+	fakek8scnicncfiov1beta1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1beta1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -76,7 +76,7 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 
 var _ clientset.Interface = &Clientset{}
 
-// K8sCniCncfIoV1 retrieves the K8sCniCncfIoV1Client
-func (c *Clientset) K8sCniCncfIoV1() k8scnicncfiov1.K8sCniCncfIoV1Interface {
-	return &fakek8scnicncfiov1.FakeK8sCniCncfIoV1{Fake: &c.Fake}
+// K8sCniCncfIoV1beta1 retrieves the K8sCniCncfIoV1beta1Client
+func (c *Clientset) K8sCniCncfIoV1beta1() k8scnicncfiov1beta1.K8sCniCncfIoV1beta1Interface {
+	return &fakek8scnicncfiov1beta1.FakeK8sCniCncfIoV1beta1{Fake: &c.Fake}
 }
