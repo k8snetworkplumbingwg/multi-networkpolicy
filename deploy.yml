@@ -85,9 +85,9 @@ spec:
       containers:
       - name: multi-networkpolicy
         # crio support requires multus:latest for now. support 3.3 or later.
-        image: nfvpe/multi-networkpolicy:snapshot-amd64
+        image: docker.io/nfvpe/multi-networkpolicy:snapshot-amd64
         imagePullPolicy: Always
-        command: ["/usr/bin/multi-network-policy-node"]
+        command: ["/usr/bin/multi-networkpolicy-node"]
         args:
         - "--host-prefix=/host"
         resources:

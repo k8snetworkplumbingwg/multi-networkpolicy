@@ -399,12 +399,12 @@ func (s *Server) syncMultiPolicy() {
 		klog.Errorf("failed to get pods")
 	}
 	for _, p := range pods {
-		klog.Infof("XXX: SYNC %s/%s", p.Namespace, p.Name)
+		klog.V(6).Infof("XXX: SYNC %s/%s", p.Namespace, p.Name)
 		if p.Spec.NodeName == s.Hostname {
 			namespacedName := types.NamespacedName{Namespace: p.Namespace, Name: p.Name}
 			if podInfo, ok := s.podMap[namespacedName]; ok {
 				if len(podInfo.Interfaces) == 0 {
-					klog.Infof("XXX: skipped due to no multi")
+					klog.V(4).Infof("XXX: skipped due to no interfaces")
 					continue
 				}
 				netnsPath := podInfo.NetNSPath
