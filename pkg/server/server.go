@@ -446,6 +446,9 @@ func (s *Server) generatePolicyRules(pod *v1.Pod, multiIntf []controllers.Interf
 		//    -A OUTPUT -j MULTI-POLICY-EGRESS # ensure rules
 		s.ip4Tables.EnsureRule(
 			utiliptables.Prepend, utiliptables.TableFilter, "OUTPUT", "-o", multiIF.InterfaceName, "-j", egressChain)
+		//    -A PREROUTING -i net1 -j RETURN # ensure rules
+		s.ip4Tables.EnsureRule(
+			utiliptables.Prepend, utiliptables.TableNAT, "PREROUTING", "-i", multiIF.InterfaceName, "-j", "RETURN")
 	}
 
 	iptableBuffer := newIptableBuffer()
