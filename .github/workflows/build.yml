@@ -36,6 +36,9 @@ jobs:
       - name: go vet
         run: go vet ./...
 
+      - name: go test
+        run: go test ./...
+
       - name: Build
         run: GOARCH="${TARGET}" go build ./cmd/multi-networkpolicy-node/
 
