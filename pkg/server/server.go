@@ -470,10 +470,9 @@ func (s *Server) generatePolicyRules(pod *v1.Pod, multiIntf []controllers.Interf
 			egressEnable = true
 		} else {
 			for _, v := range policy.Spec.PolicyTypes {
-				switch v {
-				case multiv1beta1.PolicyTypeIngress:
+				if strings.EqualFold(string(v), string(multiv1beta1.PolicyTypeIngress)) {
 					ingressEnable = true
-				case multiv1beta1.PolicyTypeEgress:
+				} else if strings.EqualFold(string(v), string(multiv1beta1.PolicyTypeEgress)) {
 					egressEnable = true
 				}
 			}
