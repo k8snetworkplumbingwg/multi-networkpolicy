@@ -103,7 +103,7 @@ func (c *PodConfig) Run(stopCh <-chan struct{}) {
 	}
 
 	for i := range c.eventHandlers {
-		klog.V(4).Infof("Calling handler.OnPodSynced()")
+		klog.V(9).Infof("Calling handler.OnPodSynced()")
 		c.eventHandlers[i].OnPodSynced()
 	}
 }
@@ -116,7 +116,7 @@ func (c *PodConfig) handleAddPod(obj interface{}) {
 	}
 
 	for i := range c.eventHandlers {
-		klog.V(4).Infof("Calling handler.OnPodAdd")
+		klog.V(9).Infof("Calling handler.OnPodAdd")
 		c.eventHandlers[i].OnPodAdd(pod)
 	}
 }
@@ -133,7 +133,7 @@ func (c *PodConfig) handleUpdatePod(oldObj, newObj interface{}) {
 		return
 	}
 	for i := range c.eventHandlers {
-		klog.V(4).Infof("Calling handler.OnPodUpdate")
+		klog.V(9).Infof("Calling handler.OnPodUpdate")
 		c.eventHandlers[i].OnPodUpdate(oldPod, pod)
 	}
 }
@@ -151,7 +151,7 @@ func (c *PodConfig) handleDeletePod(obj interface{}) {
 		}
 	}
 	for i := range c.eventHandlers {
-		klog.V(4).Infof("Calling handler.OnPodDelete")
+		klog.V(9).Infof("Calling handler.OnPodDelete")
 		c.eventHandlers[i].OnPodDelete(pod)
 	}
 }
@@ -292,7 +292,7 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 	networks, err := netdefutils.ParsePodNetworkAnnotation(pod)
 	if err != nil {
 		if _, ok := err.(*netdefv1.NoK8sNetworkError); !ok {
-			klog.Infof("failed to get pod network annotation: %v", err)
+			klog.Errorf("failed to get pod network annotation: %v", err)
 		}
 	}
 	// parse networkStatus
@@ -310,9 +310,9 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 	// netdefname -> plugin name map
 	networkPlugins := make(map[types.NamespacedName]string)
 	if networks == nil {
-		klog.Infof("%s/%s: NO NET", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name)
+		klog.V(8).Infof("%s/%s: NO NET", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name)
 	} else {
-		klog.Infof("%s/%s: net: %v", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, networks)
+		klog.V(8).Infof("%s/%s: net: %v", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, networks)
 	}
 	for _, n := range networks {
 		namespace := pod.ObjectMeta.Namespace
@@ -320,10 +320,10 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 			namespace = n.Namespace
 		}
 		namespacedName := types.NamespacedName{Namespace: namespace, Name: n.Name}
-		klog.Infof("networkPlugins[%s], %v", namespacedName, pct.netdefChanges.GetPluginType(namespacedName))
+		klog.V(8).Infof("networkPlugins[%s], %v", namespacedName, pct.netdefChanges.GetPluginType(namespacedName))
 		networkPlugins[namespacedName] = pct.netdefChanges.GetPluginType(namespacedName)
 	}
-	klog.Infof("netdef->pluginMap: %v", networkPlugins)
+	klog.V(8).Infof("netdef->pluginMap: %v", networkPlugins)
 
 	// match it with
 	var netifs []InterfaceInfo
@@ -351,7 +351,7 @@ func (pct *PodChangeTracker) newPodInfo(pod *v1.Pod) (*PodInfo, error) {
 		}
 	}
 
-	klog.Infof("Pod: %s/%s netns:%s netIF:%v", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, netnsPath, netifs)
+	klog.V(6).Infof("Pod: %s/%s netns:%s netIF:%v", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, netnsPath, netifs)
 	info := &PodInfo{
 		Name:          pod.ObjectMeta.Name,
 		Namespace:     pod.ObjectMeta.Namespace,
@@ -510,6 +510,7 @@ func (pm *PodMap) GetPodInfo(pod *v1.Pod) (*PodInfo, error) {
 }
 
 //XXX: for debug, to be removed
+/*
 func (pm *PodMap) String() string {
 	if pm == nil {
 		return ""
@@ -520,6 +521,7 @@ func (pm *PodMap) String() string {
 	}
 	return str
 }
+*/
 
 // =====================================
 // misc functions...

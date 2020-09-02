@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -250,7 +249,7 @@ func NewServer(o *Options) (*Server, error) {
 
 // Sync ...
 func (s *Server) Sync() {
-	klog.Infof("Sync Done!")
+	klog.V(4).Infof("Sync Done!")
 	s.syncRunner.Run()
 }
 
@@ -390,7 +389,7 @@ func (s *Server) OnNamespaceSynced() {
 }
 
 func (s *Server) syncMultiPolicy() {
-	klog.Infof("syncMultiPolicy")
+	klog.V(4).Infof("syncMultiPolicy")
 	s.podMap.Update(s.podChanges)
 	s.policyMap.Update(s.policyChanges)
 
@@ -399,12 +398,12 @@ func (s *Server) syncMultiPolicy() {
 		klog.Errorf("failed to get pods")
 	}
 	for _, p := range pods {
-		klog.V(6).Infof("XXX: SYNC %s/%s", p.Namespace, p.Name)
+		klog.V(8).Infof("SYNC %s/%s", p.Namespace, p.Name)
 		if p.Spec.NodeName == s.Hostname {
 			namespacedName := types.NamespacedName{Namespace: p.Namespace, Name: p.Name}
 			if podInfo, ok := s.podMap[namespacedName]; ok {
 				if len(podInfo.Interfaces) == 0 {
-					klog.V(4).Infof("XXX: skipped due to no interfaces")
+					klog.V(8).Infof("skipped due to no interfaces")
 					continue
 				}
 				netnsPath := podInfo.NetNSPath
@@ -418,7 +417,7 @@ func (s *Server) syncMultiPolicy() {
 					continue
 				}
 
-				klog.Infof("XXX: pod: %s/%s %s", p.Namespace, p.Name, netnsPath)
+				klog.V(8).Infof("pod: %s/%s %s", p.Namespace, p.Name, netnsPath)
 				_ = netns.Do(func(_ ns.NetNS) error {
 					return s.generatePolicyRules(p, podInfo.Interfaces)
 				})
@@ -433,7 +432,7 @@ const (
 )
 
 func (s *Server) generatePolicyRules(pod *v1.Pod, multiIntf []controllers.InterfaceInfo) error {
-	fmt.Fprintf(os.Stderr, "XXX: Generate rules for Pod :%v/%v\n", pod.Namespace, pod.Name)
+	klog.V(8).Infof("Generate rules for Pod :%v/%v\n", pod.Namespace, pod.Name)
 	// -t filter -N MULTI-POLICY-INGRESS # ensure chain
 	s.ip4Tables.EnsureChain(utiliptables.TableFilter, ingressChain)
 	// -t filter -N MULTI-POLICY-EGRESS # ensure chain
@@ -479,7 +478,7 @@ func (s *Server) generatePolicyRules(pod *v1.Pod, multiIntf []controllers.Interf
 				}
 			}
 		}
-		fmt.Fprintf(os.Stderr, "ingress/egress = %v/%v\n", ingressEnable, egressEnable)
+		klog.V(8).Infof("ingress/egress = %v/%v\n", ingressEnable, egressEnable)
 
 		iptableBuffer.Reset()
 
