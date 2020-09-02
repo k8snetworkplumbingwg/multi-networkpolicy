@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	//"context"
 	"fmt"
 	"time"
 
@@ -233,15 +232,15 @@ var _ = Describe("policyrules testing", func() {
 		port := intstr.FromInt(8888)
 		protoTCP := v1.ProtocolTCP
 		ingressPolicies1 := []multiv1beta1.MultiNetworkPolicyIngressRule{
-			multiv1beta1.MultiNetworkPolicyIngressRule{
+			{
 				Ports: []multiv1beta1.MultiNetworkPolicyPort{
-					multiv1beta1.MultiNetworkPolicyPort{
+					{
 						Protocol: &protoTCP,
 						Port:     &port,
 					},
 				},
 				From: []multiv1beta1.MultiNetworkPolicyPeer{
-					multiv1beta1.MultiNetworkPolicyPeer{
+					{
 						IPBlock: &multiv1beta1.IPBlock{
 							CIDR:   "10.1.1.1/24",
 							Except: []string{"10.1.1.1"},
@@ -306,15 +305,15 @@ COMMIT
 		port := intstr.FromInt(8888)
 		protoTCP := v1.ProtocolTCP
 		ingressPolicies1 := []multiv1beta1.MultiNetworkPolicyIngressRule{
-			multiv1beta1.MultiNetworkPolicyIngressRule{
+			{
 				Ports: []multiv1beta1.MultiNetworkPolicyPort{
-					multiv1beta1.MultiNetworkPolicyPort{
+					{
 						Protocol: &protoTCP,
 						Port:     &port,
 					},
 				},
 				From: []multiv1beta1.MultiNetworkPolicyPeer{
-					multiv1beta1.MultiNetworkPolicyPeer{
+					{
 						PodSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
 								"foobar": "enabled",
@@ -391,15 +390,15 @@ COMMIT
 		port := intstr.FromInt(8888)
 		protoTCP := v1.ProtocolTCP
 		egressPolicies1 := []multiv1beta1.MultiNetworkPolicyEgressRule{
-			multiv1beta1.MultiNetworkPolicyEgressRule{
+			{
 				Ports: []multiv1beta1.MultiNetworkPolicyPort{
-					multiv1beta1.MultiNetworkPolicyPort{
+					{
 						Protocol: &protoTCP,
 						Port:     &port,
 					},
 				},
 				To: []multiv1beta1.MultiNetworkPolicyPeer{
-					multiv1beta1.MultiNetworkPolicyPeer{
+					{
 						IPBlock: &multiv1beta1.IPBlock{
 							CIDR:   "10.1.1.1/24",
 							Except: []string{"10.1.1.1"},
@@ -464,15 +463,15 @@ COMMIT
 		port := intstr.FromInt(8888)
 		protoTCP := v1.ProtocolTCP
 		egressPolicies1 := []multiv1beta1.MultiNetworkPolicyEgressRule{
-			multiv1beta1.MultiNetworkPolicyEgressRule{
+			{
 				Ports: []multiv1beta1.MultiNetworkPolicyPort{
-					multiv1beta1.MultiNetworkPolicyPort{
+					{
 						Protocol: &protoTCP,
 						Port:     &port,
 					},
 				},
 				To: []multiv1beta1.MultiNetworkPolicyPeer{
-					multiv1beta1.MultiNetworkPolicyPeer{
+					{
 						PodSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
 								"foobar": "enabled",
@@ -588,15 +587,15 @@ var _ = Describe("policyrules testing - invalid case", func() {
 		port := intstr.FromInt(8888)
 		protoTCP := v1.ProtocolTCP
 		ingressPolicies1 := []multiv1beta1.MultiNetworkPolicyIngressRule{
-			multiv1beta1.MultiNetworkPolicyIngressRule{
+			{
 				Ports: []multiv1beta1.MultiNetworkPolicyPort{
-					multiv1beta1.MultiNetworkPolicyPort{
+					{
 						Protocol: &protoTCP,
 						Port:     &port,
 					},
 				},
 				From: []multiv1beta1.MultiNetworkPolicyPeer{
-					multiv1beta1.MultiNetworkPolicyPeer{
+					{
 						IPBlock: &multiv1beta1.IPBlock{
 							CIDR:   "10.1.1.1/24",
 							Except: []string{"10.1.1.1"},
@@ -631,10 +630,10 @@ var _ = Describe("policyrules testing - invalid case", func() {
 
 		buf.renderIngress(s, pod1, ingressPolicies1, []string{})
 
-		portRules := []byte("")
+		portRules := []byte("-A MULTI-INGRESS-0-PORTS -m comment --comment \"not target, skipped\" -i net1 -j MARK --set-xmark 0x10000/0x10000\n")
 		Expect(buf.ingressPorts.Bytes()).To(Equal(portRules))
 
-		fromRules := []byte("")
+		fromRules := []byte("-A MULTI-INGRESS-0-FROM -i net1 -m comment --comment \"not target, skipped\" -j MARK --set-xmark 0x20000/0x20000\n")
 		Expect(buf.ingressFrom.Bytes()).To(Equal(fromRules))
 
 		buf.FinalizeRules()
@@ -649,6 +648,8 @@ var _ = Describe("policyrules testing - invalid case", func() {
 -A MULTI-INGRESS -j MULTI-INGRESS-0-FROM
 -A MULTI-INGRESS -m mark --mark 0x30000/0x30000 -j RETURN
 -A MULTI-INGRESS -j DROP
+-A MULTI-INGRESS-0-PORTS -m comment --comment "not target, skipped" -i net1 -j MARK --set-xmark 0x10000/0x10000
+-A MULTI-INGRESS-0-FROM -i net1 -m comment --comment "not target, skipped" -j MARK --set-xmark 0x20000/0x20000
 COMMIT
 `)
 		Expect(buf.filterRules.Bytes()).To(Equal(finalizedRules))
@@ -658,15 +659,15 @@ COMMIT
 		port := intstr.FromInt(8888)
 		protoTCP := v1.ProtocolTCP
 		ingressPolicies1 := []multiv1beta1.MultiNetworkPolicyIngressRule{
-			multiv1beta1.MultiNetworkPolicyIngressRule{
+			{
 				Ports: []multiv1beta1.MultiNetworkPolicyPort{
-					multiv1beta1.MultiNetworkPolicyPort{
+					{
 						Protocol: &protoTCP,
 						Port:     &port,
 					},
 				},
 				From: []multiv1beta1.MultiNetworkPolicyPeer{
-					multiv1beta1.MultiNetworkPolicyPeer{
+					{
 						PodSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
 								"foobar": "enabled",
@@ -714,10 +715,10 @@ COMMIT
 
 		buf.renderIngress(s, pod1, ingressPolicies1, []string{})
 
-		portRules := []byte("")
+		portRules := []byte("-A MULTI-INGRESS-0-PORTS -m comment --comment \"not target, skipped\" -i net1 -j MARK --set-xmark 0x10000/0x10000\n")
 		Expect(buf.ingressPorts.Bytes()).To(Equal(portRules))
 
-		fromRules := []byte("")
+		fromRules := []byte("-A MULTI-INGRESS-0-FROM -i net1 -m comment --comment \"not target, skipped\" -j MARK --set-xmark 0x20000/0x20000\n")
 		Expect(buf.ingressFrom.Bytes()).To(Equal(fromRules))
 
 		buf.FinalizeRules()
@@ -732,6 +733,8 @@ COMMIT
 -A MULTI-INGRESS -j MULTI-INGRESS-0-FROM
 -A MULTI-INGRESS -m mark --mark 0x30000/0x30000 -j RETURN
 -A MULTI-INGRESS -j DROP
+-A MULTI-INGRESS-0-PORTS -m comment --comment "not target, skipped" -i net1 -j MARK --set-xmark 0x10000/0x10000
+-A MULTI-INGRESS-0-FROM -i net1 -m comment --comment "not target, skipped" -j MARK --set-xmark 0x20000/0x20000
 COMMIT
 `)
 		Expect(buf.filterRules.Bytes()).To(Equal(finalizedRules))
@@ -741,15 +744,15 @@ COMMIT
 		port := intstr.FromInt(8888)
 		protoTCP := v1.ProtocolTCP
 		egressPolicies1 := []multiv1beta1.MultiNetworkPolicyEgressRule{
-			multiv1beta1.MultiNetworkPolicyEgressRule{
+			{
 				Ports: []multiv1beta1.MultiNetworkPolicyPort{
-					multiv1beta1.MultiNetworkPolicyPort{
+					{
 						Protocol: &protoTCP,
 						Port:     &port,
 					},
 				},
 				To: []multiv1beta1.MultiNetworkPolicyPeer{
-					multiv1beta1.MultiNetworkPolicyPeer{
+					{
 						IPBlock: &multiv1beta1.IPBlock{
 							CIDR:   "10.1.1.1/24",
 							Except: []string{"10.1.1.1"},
@@ -784,10 +787,10 @@ COMMIT
 
 		buf.renderEgress(s, pod1, egressPolicies1, []string{})
 
-		portRules := []byte("")
+		portRules := []byte("-A MULTI-EGRESS-0-PORTS -m comment --comment \"not target, skipped\" -o net1 -j MARK --set-xmark 0x10000/0x10000\n")
 		Expect(buf.egressPorts.Bytes()).To(Equal(portRules))
 
-		toRules := []byte("")
+		toRules := []byte("-A MULTI-EGRESS-0-TO -o net1 -m comment --comment \"not target, skipped\" -j MARK --set-xmark 0x20000/0x20000\n")
 		Expect(buf.egressTo.Bytes()).To(Equal(toRules))
 
 		buf.FinalizeRules()
@@ -802,6 +805,8 @@ COMMIT
 -A MULTI-EGRESS -j MULTI-EGRESS-0-TO
 -A MULTI-EGRESS -m mark --mark 0x30000/0x30000 -j RETURN
 -A MULTI-EGRESS -j DROP
+-A MULTI-EGRESS-0-PORTS -m comment --comment "not target, skipped" -o net1 -j MARK --set-xmark 0x10000/0x10000
+-A MULTI-EGRESS-0-TO -o net1 -m comment --comment "not target, skipped" -j MARK --set-xmark 0x20000/0x20000
 COMMIT
 `)
 		Expect(buf.filterRules.Bytes()).To(Equal(finalizedRules))
@@ -811,15 +816,15 @@ COMMIT
 		port := intstr.FromInt(8888)
 		protoTCP := v1.ProtocolTCP
 		egressPolicies1 := []multiv1beta1.MultiNetworkPolicyEgressRule{
-			multiv1beta1.MultiNetworkPolicyEgressRule{
+			{
 				Ports: []multiv1beta1.MultiNetworkPolicyPort{
-					multiv1beta1.MultiNetworkPolicyPort{
+					{
 						Protocol: &protoTCP,
 						Port:     &port,
 					},
 				},
 				To: []multiv1beta1.MultiNetworkPolicyPeer{
-					multiv1beta1.MultiNetworkPolicyPeer{
+					{
 						PodSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
 								"foobar": "enabled",
@@ -866,10 +871,10 @@ COMMIT
 
 		buf.renderEgress(s, pod1, egressPolicies1, []string{"testns2/net-attach1"})
 
-		portRules := []byte("")
+		portRules := []byte("-A MULTI-EGRESS-0-PORTS -m comment --comment \"not target, skipped\" -o net1 -j MARK --set-xmark 0x10000/0x10000\n")
 		Expect(buf.egressPorts.Bytes()).To(Equal(portRules))
 
-		toRules := []byte("")
+		toRules := []byte("-A MULTI-EGRESS-0-TO -o net1 -m comment --comment \"not target, skipped\" -j MARK --set-xmark 0x20000/0x20000\n")
 		Expect(buf.egressTo.Bytes()).To(Equal(toRules))
 
 		buf.FinalizeRules()
@@ -884,6 +889,8 @@ COMMIT
 -A MULTI-EGRESS -j MULTI-EGRESS-0-TO
 -A MULTI-EGRESS -m mark --mark 0x30000/0x30000 -j RETURN
 -A MULTI-EGRESS -j DROP
+-A MULTI-EGRESS-0-PORTS -m comment --comment "not target, skipped" -o net1 -j MARK --set-xmark 0x10000/0x10000
+-A MULTI-EGRESS-0-TO -o net1 -m comment --comment "not target, skipped" -j MARK --set-xmark 0x20000/0x20000
 COMMIT
 `)
 		Expect(buf.filterRules.Bytes()).To(Equal(finalizedRules))
