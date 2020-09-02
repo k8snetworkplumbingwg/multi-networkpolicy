@@ -454,14 +454,16 @@ func (s *Server) generatePolicyRules(pod *v1.Pod, multiIntf []controllers.Interf
 	iptableBuffer.Init(s.ip4Tables)
 	for _, p := range s.policyMap {
 		policy := p.Policy
-		policyMap, err := metav1.LabelSelectorAsMap(&policy.Spec.PodSelector)
-		if err != nil {
-			klog.Errorf("label selector: %v", err)
-			continue
-		}
-		policyPodSelector := labels.Set(policyMap).AsSelectorPreValidated()
-		if !policyPodSelector.Matches(labels.Set(pod.Labels)) {
-			continue
+		if policy.Spec.PodSelector.Size() != 0 {
+			policyMap, err := metav1.LabelSelectorAsMap(&policy.Spec.PodSelector)
+			if err != nil {
+				klog.Errorf("label selector: %v", err)
+				continue
+			}
+			policyPodSelector := labels.Set(policyMap).AsSelectorPreValidated()
+			if !policyPodSelector.Matches(labels.Set(pod.Labels)) {
+				continue
+			}
 		}
 
 		var ingressEnable, egressEnable bool
