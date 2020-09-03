@@ -9,7 +9,7 @@ import (
 	multiv1beta1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1beta1"
 	"github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/controllers"
 
-	v1 "k8s.io/api/core/v1"
+	//v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog"
@@ -126,48 +126,51 @@ func (ipt *iptableBuffer) IsUsed() bool {
 	return (len(ipt.activeChain) != 0)
 }
 
-func (buf *iptableBuffer) renderIngress(s *Server, pod *v1.Pod, ingresses []multiv1beta1.MultiNetworkPolicyIngressRule, policyNetworks []string) {
-	podInfo, err := s.podMap.GetPodInfo(pod)
-	if err != nil {
-		klog.Errorf("cannot get podInfo: %v", err)
-		return
+func (ipt *iptableBuffer) CreateFilterChain(chainName string) {
+	ipt.activeChain[utiliptables.Chain(chainName)] = true
+	// Create chain if not exists
+	if chain, ok := ipt.currentFilter[utiliptables.Chain(chainName)]; ok {
+		writeBytesLine(ipt.filterChains, chain)
+	} else {
+		writeLine(ipt.filterChains, utiliptables.MakeChainLine(utiliptables.Chain(chainName)))
 	}
-	for _, multiIF := range podInfo.Interfaces {
-		if !multiIF.CheckPolicyNetwork(policyNetworks) {
-			writeLine(buf.policyIndex, "-A", ingressChain,
-				"-m", "comment", "--comment", "\"not target, skipped\"", "-i", multiIF.InterfaceName,
-				"-j", "RETURN")
-			continue
-		}
-	}
-	for n, ingress := range ingresses {
-		writeLine(buf.policyIndex, "-A", ingressChain,
-			"-j", "MARK", "--set-xmark 0x0/0x30000")
-		buf.renderIngressPorts(s, podInfo, n, ingress.Ports, policyNetworks)
-		buf.renderIngressFrom(s, podInfo, n, ingress.From, policyNetworks)
-		writeLine(buf.policyIndex, "-A", ingressChain,
-			"-m", "mark", "--mark", "0x30000/0x30000", "-j", "RETURN")
-	}
-	writeLine(buf.policyIndex, "-A", ingressChain, "-j", "DROP")
 }
 
-func (buf *iptableBuffer) renderIngressPorts(s *Server, podInfo *controllers.PodInfo, index int, ports []multiv1beta1.MultiNetworkPolicyPort, policyNetworks []string) {
-	chainName := utiliptables.Chain(fmt.Sprintf("MULTI-INGRESS-%d-PORTS", index))
+func (buf *iptableBuffer) renderIngress(s *Server, podInfo *controllers.PodInfo, idx int, policy *multiv1beta1.MultiNetworkPolicy, policyNetworks []string) {
+	chainName := fmt.Sprintf("MULTI-%d-INGRESS", idx)
+	buf.CreateFilterChain(chainName)
 
-	buf.activeChain[utiliptables.Chain(chainName)] = true
-	// Create chain if not exists
-	if chain, ok := buf.currentFilter[chainName]; ok {
-		writeBytesLine(buf.filterChains, chain)
-	} else {
-		writeLine(buf.filterChains, utiliptables.MakeChainLine(chainName))
+	ingresses := policy.Spec.Ingress
+	for _, podIntf := range podInfo.Interfaces {
+		if podIntf.CheckPolicyNetwork(policyNetworks) {
+			comment := fmt.Sprintf("\"policy:%s net-attach-def:%s\"", policy.Name, podIntf.NetattachName)
+			writeLine(buf.policyIndex, "-A", ingressChain,
+				"-m", "comment", "--comment", comment, "-i", podIntf.InterfaceName,
+				"-j", chainName)
+		}
 	}
 
+	for n, ingress := range ingresses {
+		writeLine(buf.policyIndex, "-A", chainName,
+			"-j", "MARK", "--set-xmark 0x0/0x30000")
+		buf.renderIngressPorts(s, podInfo, idx, n, ingress.Ports, policyNetworks)
+		buf.renderIngressFrom(s, podInfo, idx, n, ingress.From, policyNetworks)
+		writeLine(buf.policyIndex, "-A", chainName,
+			"-m", "mark", "--mark", "0x30000/0x30000", "-j", "RETURN")
+	}
+	writeLine(buf.policyIndex, "-A", chainName, "-j", "DROP")
+}
+
+func (buf *iptableBuffer) renderIngressPorts(s *Server, podInfo *controllers.PodInfo, pIndex, iIndex int, ports []multiv1beta1.MultiNetworkPolicyPort, policyNetworks []string) {
+	chainName := fmt.Sprintf("MULTI-%d-INGRESS-%d-PORTS", pIndex, iIndex)
+	buf.CreateFilterChain(chainName)
+
 	// Add jump from MULTI-INGRESS
-	writeLine(buf.policyIndex, "-A", ingressChain, "-j", string(chainName))
+	writeLine(buf.policyIndex, "-A", fmt.Sprintf("MULTI-%d-INGRESS", pIndex), "-j", chainName)
 
 	// Add skip rule if no ports
 	if len(ports) == 0 {
-		writeLine(buf.ingressPorts, "-A", string(chainName),
+		writeLine(buf.ingressPorts, "-A", chainName,
 			"-m", "comment", "--comment", "\"no ingress ports, skipped\"",
 			"-j", "MARK", "--set-xmark", "0x10000/0x10000")
 		return
@@ -179,30 +182,24 @@ func (buf *iptableBuffer) renderIngressPorts(s *Server, podInfo *controllers.Pod
 			if !podIntf.CheckPolicyNetwork(policyNetworks) {
 				continue
 			}
-			writeLine(buf.ingressPorts, "-A", string(chainName),
-				"-m", "comment", "--comment", "\"comment\"", "-i", podIntf.InterfaceName,
+			writeLine(buf.ingressPorts, "-A", chainName,
+				"-i", podIntf.InterfaceName,
 				"-m", proto, "-p", proto, "--dport", port.Port.String(),
 				"-j", "MARK", "--set-xmark", "0x10000/0x10000")
 		}
 	}
 }
 
-func (buf *iptableBuffer) renderIngressFrom(s *Server, podInfo *controllers.PodInfo, index int, from []multiv1beta1.MultiNetworkPolicyPeer, policyNetworks []string) {
-	chainName := utiliptables.Chain(fmt.Sprintf("MULTI-INGRESS-%d-FROM", index))
+func (buf *iptableBuffer) renderIngressFrom(s *Server, podInfo *controllers.PodInfo, pIndex, iIndex int, from []multiv1beta1.MultiNetworkPolicyPeer, policyNetworks []string) {
+	chainName := fmt.Sprintf("MULTI-%d-INGRESS-%d-FROM", pIndex, iIndex)
+	buf.CreateFilterChain(chainName)
 
-	buf.activeChain[utiliptables.Chain(chainName)] = true
-	// Create chain if not exists
-	if chain, ok := buf.currentFilter[chainName]; ok {
-		writeBytesLine(buf.filterChains, chain)
-	} else {
-		writeLine(buf.filterChains, utiliptables.MakeChainLine(chainName))
-	}
 	// Add jump from MULTI-INGRESS
-	writeLine(buf.policyIndex, "-A", ingressChain, "-j", string(chainName))
+	writeLine(buf.policyIndex, "-A", fmt.Sprintf("MULTI-%d-INGRESS", pIndex), "-j", chainName)
 
 	// Add skip rule if no froms
 	if len(from) == 0 {
-		writeLine(buf.ingressFrom, "-A", string(chainName),
+		writeLine(buf.ingressFrom, "-A", chainName,
 			"-m", "comment", "--comment", "\"no ingress from, skipped\"",
 			"-j", "MARK", "--set-xmark", "0x20000/0x20000")
 		return
@@ -252,7 +249,7 @@ func (buf *iptableBuffer) renderIngressFrom(s *Server, podInfo *controllers.PodI
 							continue
 						}
 						for _, ip := range sPodIntf.IPs {
-							writeLine(buf.ingressFrom, "-A", string(chainName),
+							writeLine(buf.ingressFrom, "-A", chainName,
 								"-i", podIntf.InterfaceName, "-s", ip,
 								"-j", "MARK", "--set-xmark", "0x20000/0x20000")
 						}
@@ -265,7 +262,7 @@ func (buf *iptableBuffer) renderIngressFrom(s *Server, podInfo *controllers.PodI
 					if !podIntf.CheckPolicyNetwork(policyNetworks) {
 						continue
 					}
-					writeLine(buf.ingressFrom, "-A", string(chainName),
+					writeLine(buf.ingressFrom, "-A", chainName,
 						"-i", podIntf.InterfaceName, "-s", except, "-j", "DROP")
 				}
 			}
@@ -273,7 +270,7 @@ func (buf *iptableBuffer) renderIngressFrom(s *Server, podInfo *controllers.PodI
 				if !podIntf.CheckPolicyNetwork(policyNetworks) {
 					continue
 				}
-				writeLine(buf.ingressFrom, "-A", string(chainName),
+				writeLine(buf.ingressFrom, "-A", chainName,
 					"-i", podIntf.InterfaceName, "-s", peer.IPBlock.CIDR,
 					"-j", "MARK", "--set-xmark", "0x20000/0x20000")
 			}
@@ -283,46 +280,38 @@ func (buf *iptableBuffer) renderIngressFrom(s *Server, podInfo *controllers.PodI
 	}
 }
 
-func (buf *iptableBuffer) renderEgress(s *Server, pod *v1.Pod, egresses []multiv1beta1.MultiNetworkPolicyEgressRule, policyNetworks []string) {
-	podInfo, err := s.podMap.GetPodInfo(pod)
-	if err != nil {
-		klog.Errorf("cannot get podInfo: %v", err)
-		return
-	}
+func (buf *iptableBuffer) renderEgress(s *Server, podInfo *controllers.PodInfo, idx int, policy *multiv1beta1.MultiNetworkPolicy, policyNetworks []string) {
+	chainName := fmt.Sprintf("MULTI-%d-EGRESS", idx)
+	buf.CreateFilterChain(chainName)
+
+	egresses := policy.Spec.Egress
 	for _, podIntf := range podInfo.Interfaces {
-		if !podIntf.CheckPolicyNetwork(policyNetworks) {
+		if podIntf.CheckPolicyNetwork(policyNetworks) {
+			comment := fmt.Sprintf("\"policy:%s net-attach-def:%s\"", policy.Name, podIntf.NetattachName)
 			writeLine(buf.policyIndex, "-A", egressChain,
-				"-m", "comment", "--comment", "\"not target, skipped\"", "-o", podIntf.InterfaceName,
-				"-j", "RETURN")
-			continue
+				"-m", "comment", "--comment", comment, "-o", podIntf.InterfaceName,
+				"-j", chainName)
 		}
 	}
 	for n, egress := range egresses {
-		writeLine(buf.policyIndex, "-A", egressChain, "-j", "MARK", "--set-xmark 0x0/0x30000")
-		buf.renderEgressPorts(s, podInfo, n, egress.Ports, policyNetworks)
-		buf.renderEgressTo(s, podInfo, n, egress.To, policyNetworks)
-		writeLine(buf.policyIndex, "-A", egressChain, "-m", "mark", "--mark", "0x30000/0x30000", "-j", "RETURN")
+		writeLine(buf.policyIndex, "-A", chainName, "-j", "MARK", "--set-xmark 0x0/0x30000")
+		buf.renderEgressPorts(s, podInfo, idx, n, egress.Ports, policyNetworks)
+		buf.renderEgressTo(s, podInfo, idx, n, egress.To, policyNetworks)
+		writeLine(buf.policyIndex, "-A", chainName, "-m", "mark", "--mark", "0x30000/0x30000", "-j", "RETURN")
 	}
-	writeLine(buf.policyIndex, "-A", egressChain, "-j", "DROP")
+	writeLine(buf.policyIndex, "-A", chainName, "-j", "DROP")
 }
 
-func (buf *iptableBuffer) renderEgressPorts(s *Server, podInfo *controllers.PodInfo, index int, ports []multiv1beta1.MultiNetworkPolicyPort, policyNetworks []string) {
-	chainName := utiliptables.Chain(fmt.Sprintf("MULTI-EGRESS-%d-PORTS", index))
-
-	buf.activeChain[utiliptables.Chain(chainName)] = true
-	// Create chain if not exists
-	if chain, ok := buf.currentFilter[chainName]; ok {
-		writeBytesLine(buf.filterChains, chain)
-	} else {
-		writeLine(buf.filterChains, utiliptables.MakeChainLine(chainName))
-	}
+func (buf *iptableBuffer) renderEgressPorts(s *Server, podInfo *controllers.PodInfo, pIndex, iIndex int, ports []multiv1beta1.MultiNetworkPolicyPort, policyNetworks []string) {
+	chainName := fmt.Sprintf("MULTI-%d-EGRESS-%d-PORTS", pIndex, iIndex)
+	buf.CreateFilterChain(chainName)
 
 	// Add jump from MULTI-EGRESS
-	writeLine(buf.policyIndex, "-A", egressChain, "-j", string(chainName))
+	writeLine(buf.policyIndex, "-A", fmt.Sprintf("MULTI-%d-EGRESS", pIndex), "-j", chainName)
 
 	// Add skip rules if no ports
 	if len(ports) == 0 {
-		writeLine(buf.egressPorts, "-A", string(chainName),
+		writeLine(buf.egressPorts, "-A", chainName,
 			"-m", "comment", "--comment", "\"no egress ports, skipped\"",
 			"-j", "MARK", "--set-xmark", "0x10000/0x10000")
 		return
@@ -334,31 +323,24 @@ func (buf *iptableBuffer) renderEgressPorts(s *Server, podInfo *controllers.PodI
 			if !podIntf.CheckPolicyNetwork(policyNetworks) {
 				continue
 			}
-			writeLine(buf.egressPorts, "-A", string(chainName),
-				"-m", "comment", "--comment", "\"comment\"", "-o", podIntf.InterfaceName,
+			writeLine(buf.egressPorts, "-A", chainName,
+				"-o", podIntf.InterfaceName,
 				"-m", proto, "-p", proto, "--dport", port.Port.String(),
 				"-j", "MARK", "--set-xmark", "0x10000/0x10000")
 		}
 	}
 }
 
-func (buf *iptableBuffer) renderEgressTo(s *Server, podInfo *controllers.PodInfo, index int, to []multiv1beta1.MultiNetworkPolicyPeer, policyNetworks []string) {
-	chainName := utiliptables.Chain(fmt.Sprintf("MULTI-EGRESS-%d-TO", index))
-
-	buf.activeChain[utiliptables.Chain(chainName)] = true
-	// Create chain if not exists
-	if chain, ok := buf.currentFilter[chainName]; ok {
-		writeBytesLine(buf.filterChains, chain)
-	} else {
-		writeLine(buf.filterChains, utiliptables.MakeChainLine(chainName))
-	}
+func (buf *iptableBuffer) renderEgressTo(s *Server, podInfo *controllers.PodInfo, pIndex, iIndex int, to []multiv1beta1.MultiNetworkPolicyPeer, policyNetworks []string) {
+	chainName := fmt.Sprintf("MULTI-%d-EGRESS-%d-TO", pIndex, iIndex)
+	buf.CreateFilterChain(chainName)
 
 	// Add jump from MULTI-EGRESS
-	writeLine(buf.policyIndex, "-A", egressChain, "-j", string(chainName))
+	writeLine(buf.policyIndex, "-A", fmt.Sprintf("MULTI-%d-EGRESS", pIndex), "-j", chainName)
 
 	// Add skip rules if no to
 	if len(to) == 0 {
-		writeLine(buf.egressTo, "-A", string(chainName),
+		writeLine(buf.egressTo, "-A", chainName,
 			"-m", "comment", "--comment", "\"no egress to, skipped\"",
 			"-j", "MARK", "--set-xmark", "0x20000/0x20000")
 		return
@@ -408,7 +390,7 @@ func (buf *iptableBuffer) renderEgressTo(s *Server, podInfo *controllers.PodInfo
 							continue
 						}
 						for _, ip := range sPodIntf.IPs {
-							writeLine(buf.egressTo, "-A", string(chainName),
+							writeLine(buf.egressTo, "-A", chainName,
 								"-o", podIntf.InterfaceName, "-d", ip,
 								"-j", "MARK", "--set-xmark", "0x20000/0x20000")
 						}
@@ -421,7 +403,7 @@ func (buf *iptableBuffer) renderEgressTo(s *Server, podInfo *controllers.PodInfo
 					if !multi.CheckPolicyNetwork(policyNetworks) {
 						continue
 					}
-					writeLine(buf.egressTo, "-A", string(chainName),
+					writeLine(buf.egressTo, "-A", chainName,
 						"-o", multi.InterfaceName, "-d", except, "-j", "DROP")
 				}
 			}
@@ -429,7 +411,7 @@ func (buf *iptableBuffer) renderEgressTo(s *Server, podInfo *controllers.PodInfo
 				if !podIntf.CheckPolicyNetwork(policyNetworks) {
 					continue
 				}
-				writeLine(buf.egressTo, "-A", string(chainName),
+				writeLine(buf.egressTo, "-A", chainName,
 					"-o", podIntf.InterfaceName, "-d", peer.IPBlock.CIDR,
 					"-j", "MARK", "--set-xmark", "0x20000/0x20000")
 			}

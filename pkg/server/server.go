@@ -400,28 +400,30 @@ func (s *Server) syncMultiPolicy() {
 	for _, p := range pods {
 		klog.V(8).Infof("SYNC %s/%s", p.Namespace, p.Name)
 		if p.Spec.NodeName == s.Hostname {
-			namespacedName := types.NamespacedName{Namespace: p.Namespace, Name: p.Name}
-			if podInfo, ok := s.podMap[namespacedName]; ok {
-				if len(podInfo.Interfaces) == 0 {
-					klog.V(8).Infof("skipped due to no interfaces")
-					continue
-				}
-				netnsPath := podInfo.NetNSPath
-				if s.hostPrefix != "" {
-					netnsPath = fmt.Sprintf("%s/%s", s.hostPrefix, netnsPath)
-				}
-
-				netns, err := ns.GetNS(netnsPath)
-				if err != nil {
-					klog.Errorf("cannot get netns: %v", err)
-					continue
-				}
-
-				klog.V(8).Infof("pod: %s/%s %s", p.Namespace, p.Name, netnsPath)
-				_ = netns.Do(func(_ ns.NetNS) error {
-					return s.generatePolicyRules(p, podInfo.Interfaces)
-				})
+			podInfo, err := s.podMap.GetPodInfo(p)
+			if err != nil {
+				klog.Errorf("cannot get podInfo: %v", err)
+				continue
 			}
+			if len(podInfo.Interfaces) == 0 {
+				klog.V(8).Infof("skipped due to no interfaces")
+				continue
+			}
+			netnsPath := podInfo.NetNSPath
+			if s.hostPrefix != "" {
+				netnsPath = fmt.Sprintf("%s/%s", s.hostPrefix, netnsPath)
+			}
+
+			netns, err := ns.GetNS(netnsPath)
+			if err != nil {
+				klog.Errorf("cannot get netns: %v", err)
+				continue
+			}
+
+			klog.V(8).Infof("pod: %s/%s %s", p.Namespace, p.Name, netnsPath)
+			_ = netns.Do(func(_ ns.NetNS) error {
+				return s.generatePolicyRules(p, podInfo)
+			})
 		}
 	}
 }
@@ -431,14 +433,14 @@ const (
 	egressChain  = "MULTI-EGRESS"
 )
 
-func (s *Server) generatePolicyRules(pod *v1.Pod, multiIntf []controllers.InterfaceInfo) error {
-	klog.V(8).Infof("Generate rules for Pod :%v/%v\n", pod.Namespace, pod.Name)
+func (s *Server) generatePolicyRules(pod *v1.Pod, podInfo *controllers.PodInfo) error {
+	klog.V(8).Infof("Generate rules for Pod :%v/%v\n", podInfo.Namespace, podInfo.Name)
 	// -t filter -N MULTI-POLICY-INGRESS # ensure chain
 	s.ip4Tables.EnsureChain(utiliptables.TableFilter, ingressChain)
 	// -t filter -N MULTI-POLICY-EGRESS # ensure chain
 	s.ip4Tables.EnsureChain(utiliptables.TableFilter, egressChain)
 
-	for _, multiIF := range multiIntf {
+	for _, multiIF := range podInfo.Interfaces {
 		//    -A INPUT -j MULTI-POLICY-INGRESS # ensure rules
 		s.ip4Tables.EnsureRule(
 			utiliptables.Prepend, utiliptables.TableFilter, "INPUT", "-i", multiIF.InterfaceName, "-j", ingressChain)
@@ -452,6 +454,9 @@ func (s *Server) generatePolicyRules(pod *v1.Pod, multiIntf []controllers.Interf
 
 	iptableBuffer := newIptableBuffer()
 	iptableBuffer.Init(s.ip4Tables)
+	iptableBuffer.Reset()
+
+	idx := 0
 	for _, p := range s.policyMap {
 		policy := p.Policy
 		if policy.Spec.PodSelector.Size() != 0 {
@@ -481,8 +486,6 @@ func (s *Server) generatePolicyRules(pod *v1.Pod, multiIntf []controllers.Interf
 		}
 		klog.V(8).Infof("ingress/egress = %v/%v\n", ingressEnable, egressEnable)
 
-		iptableBuffer.Reset()
-
 		policyNetworksAnnot, ok := policy.GetAnnotations()[PolicyNetworkAnnotation]
 		if !ok {
 			continue
@@ -497,11 +500,12 @@ func (s *Server) generatePolicyRules(pod *v1.Pod, multiIntf []controllers.Interf
 		}
 
 		if ingressEnable {
-			iptableBuffer.renderIngress(s, pod, policy.Spec.Ingress, policyNetworks)
+			iptableBuffer.renderIngress(s, podInfo, idx, policy, policyNetworks)
 		}
 		if egressEnable {
-			iptableBuffer.renderEgress(s, pod, policy.Spec.Egress, policyNetworks)
+			iptableBuffer.renderEgress(s, podInfo, idx, policy, policyNetworks)
 		}
+		idx += 1
 	}
 
 	if !iptableBuffer.IsUsed() {
