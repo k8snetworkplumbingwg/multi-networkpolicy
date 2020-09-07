@@ -2,7 +2,7 @@
 bin/
 
 # binary at the top
-./multi-networkpolicy-node
+./example
 
 # GOPATH created by the build script
 gopath/
