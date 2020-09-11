@@ -40,7 +40,7 @@ jobs:
         run: go test ./...
 
       - name: Build
-        run: GOARCH="${TARGET}" go build ./cmd/multi-networkpolicy-node/
+        run: GOARCH="${TARGET}" go build ./cmd/example
 
 # TBD:
 #      - name: Go test

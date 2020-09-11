@@ -3,24 +3,18 @@ module github.com/k8snetworkplumbingwg/multi-networkpolicy
 go 1.13
 
 require (
-	github.com/containernetworking/cni v0.7.1
-	github.com/containernetworking/plugins v0.8.5
-	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
-	github.com/k8snetworkplumbingwg/network-attachment-definition-client v0.0.0-20200528071255-22c819bc6e7e
-	github.com/onsi/ginkgo v1.11.0
-	github.com/onsi/gomega v1.7.0
-	github.com/spf13/cobra v0.0.7
-	github.com/spf13/pflag v1.0.5
-	google.golang.org/grpc v1.26.0
+	github.com/emicklei/go-restful v2.10.0+incompatible // indirect
+	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
+	github.com/googleapis/gnostic v0.2.0 // indirect
+	golang.org/x/tools v0.0.0-20190930201159-7c411dea38b0 // indirect
+	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	k8s.io/api v0.18.8
 	k8s.io/apimachinery v0.18.8
 	k8s.io/client-go v0.18.8
 	k8s.io/code-generator v0.18.8
-	k8s.io/cri-api v0.0.0
-	k8s.io/klog v1.0.0
 	k8s.io/kube-openapi v0.0.0-20200410145947-61e04a5be9a6
-	k8s.io/kubernetes v1.18.8
-	k8s.io/utils v0.0.0-20200327001022-6496210b90e8
+	k8s.io/utils v0.0.0-20200327001022-6496210b90e8 // indirect
 )
 
 replace (
