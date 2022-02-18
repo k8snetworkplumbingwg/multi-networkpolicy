@@ -47,12 +47,21 @@ func main() {
 		glog.Fatalf("Error building example clientset: %v", err)
 	}
 
-	list, err := exampleClient.K8sCniCncfIoV1beta1().MultiNetworkPolicies("default").List(context.TODO(), metav1.ListOptions{})
+	listV1beta1, err := exampleClient.K8sCniCncfIoV1beta1().MultiNetworkPolicies("default").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		glog.Fatalf("Error listing all network attachment definitions: %v", err)
 	}
 
-	for _, nad := range list.Items {
-		fmt.Printf("MultiNetworkPolicy %s\n", nad.Name)
+	for _, nad := range listV1beta1.Items {
+		fmt.Printf("MultiNetworkPolicy v1beta1 %s\n", nad.Name)
+	}
+
+	listV1beta2, err := exampleClient.K8sCniCncfIoV1beta2().MultiNetworkPolicies("default").List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		glog.Fatalf("Error listing all network attachment definitions: %v", err)
+	}
+
+	for _, nad := range listV1beta2.Items {
+		fmt.Printf("MultiNetworkPolicy v1beta2 %s\n", nad.Name)
 	}
 }
