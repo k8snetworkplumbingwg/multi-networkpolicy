@@ -454,8 +454,8 @@ spec:
               type: object
           type: object
     - name: v1beta2
-      served: true
-      storage: true
+      served: false
+      storage: false
       schema:
         openAPIV3Schema:
           description: "MultiNetworkPolicy is a CRD schema to provide NetworkPolicy
