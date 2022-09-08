@@ -23,6 +23,7 @@ Currently API version and branch are mapped as following. `master` branch is wor
 ## Current Implementations
 
 - [multi-networkpolicy-iptables](https://github.com/k8snetworkplumbingwg/multi-networkpolicy-iptables) supports v1beta1
+- [multi-networkpolicy-tc](https://github.com/Mellanox/multi-networkpolicy-tc) supports v1beta1
 
 ## MultiNetworkPolicy CRD
 
