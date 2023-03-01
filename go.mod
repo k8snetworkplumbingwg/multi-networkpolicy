@@ -13,6 +13,7 @@ require (
 )
 
 replace (
+	golang.org/x/net => golang.org/x/net v0.7.0
 	golang.org/x/text => golang.org/x/text v0.3.8
 	k8s.io/api => k8s.io/api v0.22.7
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.22.7
