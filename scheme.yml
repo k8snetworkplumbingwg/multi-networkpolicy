@@ -501,6 +501,7 @@ spec:
                               x-kubernetes-int-or-string: true
                             endPort:
                               type: integer
+                              format: int32
                               description: "If set, indicates that the range of ports from
                                 port to endPort, inclusive, should be allowed by the policy.
                                 This field cannot be defined if the port field is not
@@ -822,6 +823,7 @@ spec:
                               x-kubernetes-int-or-string: true
                             endPort:
                               type: integer
+                              format: int32
                               description: "If set, indicates that the range of ports from
                                 port to endPort, inclusive, should be allowed by the policy.
                                 This field cannot be defined if the port field is not
