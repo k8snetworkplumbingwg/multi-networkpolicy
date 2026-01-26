@@ -40,6 +40,26 @@ It provides new CRD for Network Policy, MultiNetworkPolicy, to prevent it from c
 (TBD)
 
 
+## Development
+
+### Regenerating CRD Schema
+
+The CRD schema (`scheme.yml`) is generated from Go type definitions in `pkg/apis/k8s.cni.cncf.io/`. To regenerate the CRD after modifying the types:
+
+```bash
+./hack/update-crdgen.sh
+```
+
+This script uses [controller-gen](https://book.kubebuilder.io/reference/controller-gen.html) to generate the CRD manifest from kubebuilder markers in the Go source files.
+
+### Regenerating Go Code
+
+To regenerate deepcopy functions and client code:
+
+```bash
+./hack/update-codegen.sh
+```
+
 ## TODO
 
 * Alternative packet processing other than iptables (e.g. xdp)

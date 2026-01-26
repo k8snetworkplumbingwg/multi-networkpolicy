@@ -50,3 +50,27 @@ jobs:
 #        with:
 #          path-to-profile: coverage.out
 
+  verify-crd:
+    name: Verify CRD is up-to-date
+    runs-on: ubuntu-latest
+    if: >
+      (( github.event.pull_request.head.repo.owner.login != github.event.pull_request.base.repo.owner.login ) &&
+        github.event_name == 'pull_request' ) || (github.event_name == 'push' && github.event.commits != '[]' )
+    steps:
+      - name: Set up Go 1.21
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.21
+
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Verify CRD is up-to-date
+        run: |
+          ./hack/update-crdgen.sh
+          if ! git diff --quiet scheme.yml; then
+            echo "ERROR: CRD scheme.yml is out of date. Please run './hack/update-crdgen.sh' and commit the changes."
+            git diff scheme.yml
+            exit 1
+          fi
+
